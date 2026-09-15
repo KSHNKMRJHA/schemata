@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# Runtime data & secrets
+.env
+data/
+nuitka-crash-report.xml
+
+# Test / tool caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Local test BOMs / documents (not part of the project)
+ginee.csv
+ginee.xlsx
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/

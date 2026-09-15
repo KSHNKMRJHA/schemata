@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}BOM desk — Schemata{% endblock %}
+{% block content %}
+<section class="hero hero-narrow">
+  <div class="hero-label">BOM desk</div>
+  <h1>Roll a bill of materials through the whole risk pipeline.</h1>
+  <p class="hero-sub">Upload a CSV or Excel BOM. Every line gets its lifecycle, distributor snapshot, risk score and replacement candidates — then the criticals, cost roll-up and lifecycle distribution come back as one sheet you can export.</p>
+
+  {% if not result %}
+  <form class="dropzone" action="/bom/analyze" method="post" enctype="multipart/form-data" id="bomForm">
+    <input type="file" name="file" id="bomFile" accept=".csv,.txt,.xlsx,.xlsm" class="file-input">
+    <label for="bomFile" class="dz-inner">
+      <span class="dz-plus">＋</span>
+      <span><strong>Drop a BOM here</strong> or browse — .csv / .xlsx / .xlsm</span>
+      <span class="muted">Columns: reference, mpn, manufacturer, qty, target price. Header names are matched by meaning.</span>
+    </label>
+    <button type="submit" class="cta" id="bomSubmit">Analyze BOM</button>
+  </form>
+  {% else %}
+  <div class="export-links">
+    <span class="tag">{{ result.filename }}</span>
+    <a class="link" href="/bom/export/{{ token }}.json">JSON</a>
+    <a class="link" href="/bom/export/{{ token }}.csv">CSV</a>
+    <a class="link" href="/bom/export/{{ token }}.html">HTML</a>
+    <a class="link" href="/bom">Analyze another</a>
+  </div>
+  {% endif %}
+</section>
+
+{% if result %}
+<section class="kpi-row">
+  <div class="kpi"><span class="kpi-num">{{ result.total_lines }}</span><span class="kpi-label">lines</span></div>
+  <div class="kpi"><span class="kpi-num pos">{{ result.ok_lines }}</span><span class="kpi-label">resolved</span></div>
+  <div class="kpi"><span class="kpi-num neg">{{ result.error_lines }}</span><span class="kpi-label">errors</span></div>
+  <div class="kpi"><span class="kpi-num">{{ "%.2f"|format(result.total_cost_estimate) if result.total_cost_estimate is not none else "—" }}</span><span class="kpi-label">est. total {{ result.currency }}</span></div>
+</section>
+
+<div class="layout">
+  <div class="panel">
+    <h2 class="panel-title">Lifecycle distribution</h2>
+    {% if result.lifecycle_distribution %}
+    <div class="pill-row">
+      {% for status, count in result.lifecycle_distribution|dictsort(false,'value',reverse=true) %}
+      <span class="pill {{ status|status_color }}">{{ status }} × {{ count }}</span>
+      {% endfor %}
+    </div>
+    {% else %}<div class="empty">No resolved parts in this BOM.</div>{% endif %}
+  </div>
+  <div class="panel">
+    <h2 class="panel-title">Risk distribution</h2>
+    <div class="pill-row">
+      {% for level, count in result.risk_distribution|dictsort(false,'value',reverse=true) %}
+      <span class="pill {{ 'red' if level in ('HIGH','CRITICAL') else 'yellow' if level=='MEDIUM' else 'green' }}">{{ level }} × {{ count }}</span>
+      {% endfor %}
+    </div>
+    {% if result.critical_parts %}
+    <div class="alert amber">Flag {{ result.critical_parts|length }} critical line{{ '' if result.critical_parts|length == 1 else 's' }} — review a replacement before these hit production.</div>
+    {% endif %}
+  </div>
+</div>
+
+<section class="panel panel-wide">
+  <h2 class="panel-title">Line-by-line</h2>
+  <table class="sheet">
+    <thead><tr><th>#</th><th>Ref</th><th>MPN</th><th>Manufacturer</th><th>Qty</th><th>Lifecycle</th><th>Risk</th><th>Est. cost</th><th>Best alternates</th><th>Notes</th></tr></thead>
+    <tbody>
+    {% for line in result.lines %}
+      <tr class="{{ 'row-bad' if line.risk and line.risk.level in ('HIGH','CRITICAL') else '' }}">
+        <td class="muted">{{ line.seq }}</td>
+        <td class="mono">{{ line.reference }}</td>
+        <td class="mono">{% if line.component %}<a class="link" href="/parts/{{ line.mpn }}">{{ line.mpn }}</a>{% else %}{{ line.mpn }}{% endif %}</td>
+        <td>{{ line.manufacturer }}</td>
+        <td class="mono">{{ line.qty }}</td>
+        <td>{% if line.component %}<span class="pill {{ line.component.lifecycle_status|status_color }}">{{ line.component.lifecycle_status }}</span>{% else %}—{% endif %}</td>
+        <td>{% if line.risk %}<span class="pill {{ 'red' if line.risk.level in ('HIGH','CRITICAL') else 'yellow' if line.risk.level=='MEDIUM' else 'green' }}">{{ line.risk.level }} {{ line.risk.score }}</span>{% else %}—{% endif %}</td>
+        <td class="mono">{% if line.cost_estimate is not none %}{{ "%.2f"|format(line.cost_estimate) }}{% else %}—{% endif %}</td>
+        <td class="muted">{% for a in line.alternatives[:2] %}{{ a.mpn }} ({{ a.kind }}){% if not loop.last %}; {% endif %}{% endfor %}</td>
+        <td class="muted">{{ line.errors|join("; ") }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/app.js"></script>
+<script>window.Schemata && Schemata.bomDrop();</script>
+{% endblock %}

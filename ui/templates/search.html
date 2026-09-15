@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Part library — Schemata{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="hero-label">Component intelligence platform</div>
+  <h1>Look a part in the eye<br>before it goes into your BOM.</h1>
+  <p class="hero-sub">Lifecycle status, distributor stock and pricing, engineering risk and replacement candidates — gathered live from APIs when keys are present, from the bundled catalog otherwise.</p>
+
+  <form class="searchbox" action="/parts/search" method="get">
+    <input type="text" name="mpn" value="{{ mpn_q or '' }}" placeholder="Part number, e.g. STM32F407VGT6" autofocus class="mpn-input">
+    <input type="text" name="manufacturer" value="{{ mfr_q or '' }}" placeholder="manufacturer (optional)" class="mfr-input">
+    <button type="submit" class="cta">Inspect part</button>
+  </form>
+  {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+  <div class="hero-meta">
+    <span>Live: {{ live_sources|join(", ") if live_sources else "none — using demo catalog" }}</span>
+    <span>Demo catalog: {{ mock_sources|join(", ") }}</span>
+  </div>
+</section>
+
+<section class="recent">
+  <h2>Recently inspected</h2>
+  {% if recent %}
+  <table class="sheet">
+    <thead><tr><th>Part</th><th>Manufacturer</th><th>Category</th><th>Package</th><th>Lifecycle</th><th>Risk</th><th></th></tr></thead>
+    <tbody>
+    {% for c in recent %}
+      <tr>
+        <td class="mono">{{ c.mpn_normalized }}</td>
+        <td>{{ c.manufacturer }}</td>
+        <td>{{ c.category }}</td>
+        <td class="mono">{{ c.package }}</td>
+        <td><span class="pill {{ c.lifecycle_status|status_color }}">{{ c.lifecycle_status }}</span></td>
+        <td class="muted">{{ c.updated_at|datetime }}</td>
+        <td><a class="link" href="/parts/{{ c.mpn_normalized }}">Open →</a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">No parts inspected yet. Search an MPN above — the platform digs from the sources, then you can roll it into a BOM.</div>
+  {% endif %}
+</section>
+{% endblock %}

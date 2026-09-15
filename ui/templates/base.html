@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Part Intelligence{% endblock %}</title>
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/parts">Schemata<span class="brand-dot">.</span></a>
+  <nav class="nav">
+    <a href="/parts">Part library</a>
+    <a href="/bom">BOM desk</a>
+    <a href="/settings">Sources</a>
+  </nav>
+  <span class="source-cue">
+    {% if live_sources %}<span class="dot-live"></span>{{ live_sources|length }} live sources{% else %}<span class="dot-demo"></span>demo catalog{% endif %}
+  </span>
+</header>
+<main class="page">
+{% block content %}{% endblock %}
+</main>
+<footer class="footer">
+  <span>Schemata — component intelligence workbench</span>
+  <span class="footer-rule">source-backed data • timestamps on every value • nothing invented</span>
+</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>

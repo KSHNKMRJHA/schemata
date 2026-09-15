@@ -1,0 +1,40 @@
+# Part Intelligence defaults. Secrets go in .env, tunables here.
+
+[defaults]
+region = "US"
+currency = "USD"
+site = "US"
+language = "en"
+
+[cache]
+# Local component facts considered fresh for this long (hours)
+component_ttl_hours = 24
+# Volatile distributor stock/price snapshots considered fresh (minutes)
+snapshot_ttl_minutes = 15
+# Re-verify sparse datasheets / lifecycle at most every N hours
+lifecycle_min_interval_hours = 6
+
+[orchestrator]
+timeout_seconds = 25
+max_retries = 2
+concurrency = 4
+
+[rate_limits]
+# Requests-per-minute per live source (Mouser hard limit is 30/min, 1000/day)
+mouser_per_minute = 25
+digikey_per_minute = 30
+
+[api]
+# Inbound HTTP API budget per client (requests/min). 0 disables the limiter.
+requests_per_minute = 600
+# Known-good part used by the "Test connection" probe on the settings page.
+probe_mpn = "NE555P"
+probe_manufacturer = "Texas Instruments"
+
+[risk]
+weight_lifecycle = 40
+weight_stock = 20
+weight_lead_time = 15
+weight_vendor_diversity = 10
+weight_price_trend = 10
+weight_manufacturer = 5

@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "part-intelligence"
+version = "0.1.0"
+description = "Local Electronic Component Intelligence Platform - lifecycle, availability, pricing, alternatives and BOM risk intelligence"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "sqlalchemy>=2.0.25",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+part-search = "app.main:run"
+
+[tool.setuptools.packages.find]
+include = ["app*", "ui*"]
+
+[tool.setuptools.package-data]
+app = ["py.typed"]
+ui = ["templates/*.html", "static/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Long-but-legitimate data lines (URLs, descriptions) in the demo catalog.
+"tests/fixtures/fixture_catalog.py" = ["E501"]
+# Standalone-export HTML template strings (deliberately compact lines).
+"app/reports.py" = ["E501"]

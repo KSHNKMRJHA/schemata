@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}{{ component.mpn_normalized }} — Schemata{% endblock %}
+{% block content %}
+
+<section class="spec-header">
+  <div class="spec-id">
+    <div class="hero-label">Part dossier</div>
+    <h1 class="mpn-display">{{ component.mpn_normalized }}</h1>
+    <div class="spec-sub">
+      <span>{{ component.manufacturer or "manufacturer unknown" }}</span>
+      <span class="sep">•</span>
+      <span>{{ component.family or "family tbd" }}</span>
+    </div>
+  </div>
+  <div class="spec-meta">
+    <span class="pill {{ lifecycle_tag }}">{{ component.lifecycle_status }}</span>
+    <div class="confidence">confidence {{ "%.0f"|format(report.confidence*100) }}%</div>
+    <div class="muted">verified {% if component.last_verified %}{{ component.last_verified|datetime }}{% else %}never{% endif %}</div>
+    <div class="export-links">
+      <a class="link" href="/parts/{{ component.mpn_normalized }}/export.json">JSON</a>
+      <a class="link" href="/parts/{{ component.mpn_normalized }}/export.csv">CSV</a>
+      <a class="link" href="/parts/{{ component.mpn_normalized }}/export.html">HTML</a>
+    </div>
+  </div>
+</section>
+
+<div class="rule"></div>
+
+<section class="layout">
+  <div class="col">
+    <div class="panel">
+      <h2 class="panel-title">Component record</h2>
+      <dl class="spec">
+        <dt>Description</dt><dd>{{ component.description or "— no description returned by any source" }}</dd>
+        <dt>Category</dt><dd>{{ component.category or "unknown" }}</dd>
+        <dt>Package</dt><dd class="mono">{{ component.package or "unknown" }}</dd>
+        <dt>Operating voltage</dt><dd class="mono">{{ component.operating_voltage or "unknown" }}</dd>
+        <dt>Current</dt><dd class="mono">{{ component.current or "unknown" }}</dd>
+        <dt>Frequency</dt><dd class="mono">{{ component.frequency or "unknown" }}</dd>
+        <dt>Temperature</dt><dd class="mono">{{ component.temperature or "unknown" }}</dd>
+        <dt>RoHS</dt><dd>{{ component.rohs }}</dd>
+        <dt>REACH</dt><dd>{{ component.reach }}</dd>
+        <dt>Datasheet</dt><dd>{% if component.datasheet_url %}<a class="link" href="{{ component.datasheet_url }}" target="_blank" rel="noopener">open →</a>{% else %}none on record{% endif %}</dd>
+        <dt>Product page</dt><dd>{% if component.product_url %}<a class="link" href="{{ component.product_url }}" target="_blank" rel="noopener">open →</a>{% else %}—{% endif %}</dd>
+      </dl>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Distributor snapshot</h2>
+      {% set latest = {} %}
+      {% for s in component.snapshots|sort(attribute='checked_at', reverse=true) if s.distributor not in latest %}
+        {% set _ = latest.update({s.distributor: s}) %}
+      {% endfor %}
+      {% if latest %}
+      <table class="sheet">
+        <thead><tr><th>Vendor</th><th>Stock</th><th>Price breaks</th><th>Lead time</th><th>Checked</th></tr></thead>
+        <tbody>
+        {% for s in latest.values() %}
+          <tr>
+            <td class="tag">{{ s.distributor }}</td>
+            <td class="mono">{{ s.available_qty if s.available_qty is not none else "—" }}</td>
+            <td class="mono">{% for b in s.price_breaks %}{{ b.qty }} @ {{ "%.2f"|format(b.price) }}{% if not loop.last %} · {% endif %}{% endfor %}</td>
+            <td>{{ s.lead_time or "—" }}</td>
+            <td class="muted">{{ s.checked_at|datetime }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div class="empty">No stock or pricing returned by any source. Confirm the MPN and refresh.</div>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Price &amp; stock history</h2>
+      {% if history.series %}
+      <canvas id="historyChart" width="720" height="220" class="history-canvas"></canvas>
+      <div class="chart-legend">
+        <span class="muted">aggregate stock and lowest unit price per snapshot</span>
+        {% if history.price_delta_pct < 0 %}<span class="tag pos">price −{{ "%.1f"|format(history.price_delta_pct|abs) }}%</span>{% elif history.price_delta_pct > 0 %}<span class="tag neg">price +{{ "%.1f"|format(history.price_delta_pct) }}%</span>{% endif %}
+      </div>
+      {% else %}
+      <div class="empty">Snapshots accumulate here over time as you inspect and refresh this part.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col col-right">
+    <div class="panel risk-panel">
+      <h2 class="panel-title">Engineering risk</h2>
+      <div class="risk-score {{ 'risk-severe' if report.risk.level in ('HIGH','CRITICAL') else 'risk-ok' }}">
+        <span class="risk-num">{{ report.risk.score }}</span>
+        <span class="risk-mark">{{ report.risk.level }}</span>
+      </div>
+      <div class="risk-bars">
+        {% for key, sub in report.risk.breakdown.items() %}
+        <div class="rbar">
+          <span class="rbar-label">{{ key.replace('_',' ') }}</span>
+          <div class="rbar-track"><div class="rbar-fill" style="width:{{ (sub*100)|int }}%"></div></div>
+          <span class="rbar-val mono">{{ (sub*100)|int }}%</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% if report.risk.notes %}
+      <ul class="notes">
+        {% for n in report.risk.notes %}<li>{{ n }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Lifecycle</h2>
+      <p class="muted">{{ component.lifecycle_status|status_desc }}</p>
+      {% if transitions %}
+      <div class="flow">
+        <span class="pill {{ lifecycle_tag }}">{{ component.lifecycle_status }}</span>
+        <span class="flow-arrow">→</span>
+        <span>can move to {% for t in transitions %}<span class="pill-chip">{{ t }}</span>{% endfor %}</span>
+      </div>
+      {% endif %}
+      {% if component.lifecycle_events %}
+      <ul class="timeline">
+        {% for e in component.lifecycle_events|sort(attribute='event_date') %}
+        <li><span class="tl-date mono">{{ e.event_date or "—" }}</span><strong>{{ e.event_type }}</strong><span class="muted">{{ e.notes }}</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Replacement candidates</h2>
+      {% if report.alternatives %}
+      <table class="sheet">
+        <thead><tr><th>MPN</th><th>Kind</th><th>Lifecycle</th><th>Score</th></tr></thead>
+        <tbody>
+        {% for a in report.alternatives[:8] %}
+          <tr>
+            <td class="mono"><a class="link" href="/parts/{{ a.mpn }}">{{ a.mpn }}</a></td>
+            <td><span class="tag">{{ a.kind }}</span></td>
+            <td><span class="pill {{ a.lifecycle_status|status_color }}">{{ a.lifecycle_status }}</span></td>
+            <td class="mono">{{ "%.2f"|format(a.score) }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+      <div class="muted">Best first. Drop-in means pin/package/function compatible; verify electrically before committing.</div>
+      {% else %}
+      <div class="empty">No scored candidates yet — candidates grow as more parts are inspected.</div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h2 class="panel-title">Evidence trail</h2>
+  <table class="sheet">
+    <thead><tr><th>Source</th><th>Type</th><th>Status</th><th>Confidence</th><th>Retrieved</th></tr></thead>
+    <tbody>
+    {% for e in component.evidences %}
+      <tr>
+        <td class="tag">{{ e.source_name }}</td>
+        <td>{{ e.source_type }}</td>
+        <td><span class="pill {{ 'green' if e.status=='verified' else 'red' if e.status=='conflicting' else 'blue' }}">{{ e.status }}</span></td>
+        <td class="mono">{{ "%.0f"|format(e.confidence*100) }}%</td>
+        <td class="muted">{{ e.retrieved_at|datetime }} {% if e.region %}· {{ e.region }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<script type="application/json" id="history-data">{{ history_json|safe }}</script>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/app.js"></script>
+<script>window.Schemata && Schemata.historyChart();</script>
+{% endblock %}

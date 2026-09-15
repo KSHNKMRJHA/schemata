@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Sources — Schemata{% endblock %}
+{% block content %}
+<section class="hero hero-narrow">
+  <div class="hero-label">Sources &amp; trust</div>
+  <h1>Go live: drop in your API credentials.</h1>
+  <p class="hero-sub">Save your keys here and the platform swaps the demo feed for the live API without a restart. No key means the bundled demo catalog answers (clearly labelled).</p>
+</section>
+
+<section class="layout">
+  <div class="panel">
+    <h2 class="panel-title">Live source credentials</h2>
+    <form id="settingsForm" class="settings-form" method="post" action="/api/settings" autocomplete="off">
+      <label class="field" for="field-mouser">
+        <span class="field-label">Mouser — Search API key</span>
+        <input id="field-mouser" name="mouser_api_key" type="password" class="mpn-input field-input"
+               placeholder="{% if current.mouser_api_key %}saved — leave blank to keep{% else %}UUID key, no OAuth{% endif %}"
+               value="">
+        <span class="muted small">{% if configured.mouser %}<span class="pill green">configured</span>{% else %}not set — demo{% endif %}</span>
+      </label>
+
+      <label class="field" for="field-dk-id">
+        <span class="field-label">DigiKey — Client ID</span>
+        <input id="field-dk-id" name="digikey_client_id" type="password" class="mpn-input field-input"
+               placeholder="{% if current.digikey_client_id %}saved — leave blank to keep{% else %}2-legged client id, Product Information v4{% endif %}"
+               value="">
+      </label>
+
+      <label class="field" for="field-dk-secret">
+        <span class="field-label">DigiKey — Client Secret</span>
+        <input id="field-dk-secret" name="digikey_client_secret" type="password" class="mpn-input field-input"
+               placeholder="{% if current.digikey_client_secret %}saved — leave blank to keep{% else %}client secret{% endif %}"
+               value="">
+        <span class="muted small">{% if configured.digikey %}<span class="pill green">configured</span>{% else %}not set — demo{% endif %}</span>
+      </label>
+
+      <label class="field-check" for="field-dk-sandbox">
+        <input id="field-dk-sandbox" name="digikey_sandbox" type="checkbox" {% if current.digikey_sandbox %}checked{% endif %}>
+        <span class="field-label">DigiKey sandbox (`sandbox-api.digikey.com`)</span>
+        <span class="muted small">Sandbox apps only answer on the sandbox host — production apps reject sandbox credentials (HTTP 401 Invalid clientId).</span>
+      </label>
+
+      <div class="btn-row">
+        <button id="saveSettings" class="cta cta-square" type="submit">Save &amp; go live</button>
+        <button id="testSettings" class="cta cta-square cta-ghost" type="button">Test connection</button>
+      </div>
+
+      <p id="settingsStatus" class="settings-status muted" role="status"></p>
+      <h3 class="panel-title small-title">Probe results</h3>
+      <div id="probeResults" class="probe"></div>
+    </form>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <h2 class="panel-title">Active source set</h2>
+      <p class="muted small" id="sourceSummary">
+        <span class="pill green">live</span> {{ live_sources|join(', ') or 'none' }} ·
+        <span class="pill yellow">demo</span> {{ mock_sources|join(', ') }}
+      </p>
+      <table class="sheet">
+        <thead><tr><th>Source</th><th>Mode</th></tr></thead>
+        <tbody>
+          <tr><td class="tag">Mouser</td><td>{% if configured.mouser %}<span class="pill green">live API</span>{% else %}<span class="pill blue">demo — no key</span>{% endif %}</td></tr>
+          <tr><td class="tag">DigiKey</td><td>{% if configured.digikey %}<span class="pill green">live API</span>{% else %}<span class="pill blue">demo — no creds</span>{% endif %}</td></tr>
+          <tr><td class="tag">Farnell</td><td><span class="pill blue">demo — no free API</span></td></tr>
+          <tr><td class="tag">RS / TME / LCSC</td><td><span class="pill blue">demo — no free API</span></td></tr>
+          <tr><td class="tag">Manufacturer</td><td><span class="pill blue">demo — lifecycle/PCN</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2 class="panel-title">Precedence rules</h2>
+      <ol class="rules">
+        <li><span class="tag">Manufacturer</span> lifecycle and specification claims outrank distributor interpretation.</li>
+        <li><span class="tag">Live API</span> answers outrank planted demo catalog values of equal class.</li>
+        <li><span class="tag">Unknown</span> is a value, not a gap — nothing is invented when no source supports a claim.</li>
+        <li>Every number carries a <span class="tag">source + retrieved-at timestamp + confidence</span>.</li>
+      </ol>
+      <p class="muted small">Keys are written to <code>{{ env_path }}</code>{% if frozen %} (your user-data dir — safe across updates){% else %} next to the code base{% endif %} and picked up immediately.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/app.js"></script>
+<script>window.Schemata && Schemata.settings();</script>
+{% endblock %}
