@@ -2,7 +2,7 @@
 
 A **local, privacy-first component intelligence platform** for electronics engineers and procurement. `Schemata` tracks a component's full lifecycle: search a part number, see its lifecycle status, distributor stock & pricing, engineering risk, and replacement candidates — then roll a whole **BOM** through a line-by-line procurement risk pipeline.
 
-> Runs 100% locally. The server binds to `127.0.0.1` only. Nothing leaves your machine except direct look-ups to Mouser / DigiKey when you configure API keys. No telemetry, no accounts, no cloud.
+> Runs 100% locally. The server binds to `127.0.0.1` only. Nothing leaves your machine except direct look-ups to Mouser / DigiKey / Nexar when you configure API keys. No telemetry, no accounts, no cloud.
 
 ---
 
@@ -22,13 +22,13 @@ A **local, privacy-first component intelligence platform** for electronics engin
   - Export the report as **JSON / CSV / HTML**
 
 - **Sources**
-  - Live adapters: **Mouser Search API** and **DigiKey Product Information + OAuth2**
+  - Live adapters: **Mouser Search API**, **DigiKey Product Information + OAuth2**, and **Nexar (Octopart) GraphQL**
   - Built-in **demo catalog** so a fresh install is useful with zero keys
   - "Test connection" probe against live sources from the settings page
 
 - **Operations**
   - Bounded in-memory BOM cache (TTL + max entries), persistent per-user storage
-  - Inbound API rate limiting + per-source outbound throttle (respects Mouser 30/min hard limit)
+  - Inbound API rate limiting + per-source outbound throttle (respects each provider's hard limit)
   - Structured logging (`%LOCALAPPDATA%\Schemata\launcher.log`)
   - Native **desktop launcher** (Tk) to start/stop the server and open the browser
   - Portable `Schemata.exe` and a Windows installer
