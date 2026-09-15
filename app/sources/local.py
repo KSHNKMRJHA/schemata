@@ -147,12 +147,14 @@ tme_stub = _dist_stub("TME", ("TME", "LCSC"))
 lcsc_stub = _dist_stub("LCSC", ("LCSC",))
 mouser_stub = _dist_stub("Mouser", ("Mouser",))
 digikey_stub = _dist_stub("DigiKey", ("DigiKey",))
+nexar_stub = _dist_stub("Nexar", ("Nexar", "Octopart"))
 manufacturer_stub = MfrStub()
 
 STUB_ADAPTERS: list[SourceAdapter] = [
     manufacturer_stub,
     mouser_stub,
     digikey_stub,
+    nexar_stub,
     farnell_stub,
     rs_stub,
     tme_stub,

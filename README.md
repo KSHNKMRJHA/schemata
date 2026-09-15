@@ -41,7 +41,7 @@ A **local, privacy-first component intelligence platform** for electronics engin
 
 Use the installer from the **Releases** page, or unzip the portable build:
 
-1. Run `Setup_Schemata_v1.0.1.exe` and follow the wizard (installs the VC++ runtime automatically),
+1. Run `Setup_Schemata_v1.0.2.exe` and follow the wizard (installs the VC++ runtime automatically),
    **or** unzip `Schemata.dist.zip` and run `Schemata.exe` from anywhere.
 2. Click **Start Schemata**. Your browser opens at `http://127.0.0.1:8750`.
 3. First run seeds the demo catalog automatically.
@@ -83,6 +83,11 @@ Live distributor data requires keys. Without them the app runs fully offline on 
 2. Create a new application → you get a **Client ID** and **Client Secret** (OAuth2 two-legged). No approval needed.
 3. Result: `DIGIKEY_CLIENT_ID` + `DIGIKEY_CLIENT_SECRET`.
 
+**Nexar (Octopart) API**
+1. Register (free) at <https://nexar.com> → create an application.
+2. Copy the **Client ID** and **Client Secret** (OAuth2 client_credentials). Free "Evaluation" plan includes 100 matched parts/month; no datasheets/lifecycle data on free tier.
+3. Result: `NEXAR_CLIENT_ID` + `NEXAR_CLIENT_SECRET`.
+
 ### 📍 Where to put the keys
 
 | Run mode | Location | How |
@@ -106,6 +111,8 @@ Secrets go in `.env` (copy from `.env.example`); behaviour knobs go in `config.t
 MOUSER_API_KEY=            # https://www.mouser.com/api-hub/
 DIGIKEY_CLIENT_ID=         # https://developer.digikey.com
 DIGIKEY_CLIENT_SECRET=
+NEXAR_CLIENT_ID=           # https://identity.nexar.com
+NEXAR_CLIENT_SECRET=
 ```
 
 > Missing keys fall back to the seeded demo catalog automatically — the app is fully
@@ -118,7 +125,7 @@ DIGIKEY_CLIENT_SECRET=
 | `[defaults]` | `region`, `currency`, `site`, `language` | Localisation defaults |
 | `[cache]` | `component_ttl_hours`, `snapshot_ttl_minutes`, `lifecycle_min_interval_hours` | Fact freshness windows |
 | `[orchestrator]` | `timeout_seconds`, `max_retries`, `concurrency` | Live-source fan-out |
-| `[rate_limits]` | `mouser_per_minute`, `digikey_per_minute` | Outbound throttle per source |
+| `[rate_limits]` | `mouser_per_minute`, `digikey_per_minute`, `nexar_per_minute` | Outbound throttle per source |
 | `[api]` | `requests_per_minute`, `probe_mpn`, `probe_manufacturer` | Inbound rate limit & probe part |
 | `[risk]` | `weight_*` | Risk-score weighting |
 
@@ -137,7 +144,7 @@ DIGIKEY_CLIENT_SECRET=
 # 1) Standalone exe  -> dist\Schemata.dist\Schemata.exe
 powershell -NoProfile -ExecutionPolicy Bypass -File packaging\build_nuitka.ps1
 
-# 2) Inno Setup installer -> dist\installer\Setup_Schemata_v1.0.1.exe
+# 2) Inno Setup installer -> dist\installer\Setup_Schemata_v1.0.2.exe
 & "C:\Users\<you>\AppData\Local\Programs\Inno Setup 6\ISCC.exe" packaging\Schemata-setup.iss
 ```
 
@@ -164,7 +171,7 @@ All `/api/*` endpoints are rate-limited (`[api] requests_per_minute`, default 60
 ## 🗂️ Project layout
 
 ```
-app/            Backend: config, models, sources (mouser/digikey/mock),
+app/            Backend: config, models, sources (mouser/digikey/nexar/mock),
                 orchestrator, service, BOM engine, reports, FastAPI app
 ui/             Jinja2 templates, CSS and vanilla JS
 packaging/      launcher.py (Tk start window), Nuitka build, Inno Setup .iss
@@ -180,7 +187,7 @@ config.toml     Runtime tunables
 Built and maintained by **Kishan J.**
 - GitHub: [KSHNKMRJHA](https://github.com/KSHNKMRJHA)
 
-Powered by **Mouser API Hub** and **DigiKey Product Information API** data where configured.
+Powered by **Mouser API Hub**, **DigiKey Product Information API** and **Nexar (Octopart) GraphQL** data where configured.
 
 ---
 

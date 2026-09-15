@@ -12,6 +12,8 @@ os.environ["DATABASE_URL"] = f"sqlite:///{_tmp / 'test.db'}"
 os.environ["MOUSER_API_KEY"] = ""
 os.environ["DIGIKEY_CLIENT_ID"] = ""
 os.environ["DIGIKEY_CLIENT_SECRET"] = ""
+os.environ["NEXAR_CLIENT_ID"] = ""
+os.environ["NEXAR_CLIENT_SECRET"] = ""
 
 import pytest  # noqa: E402
 

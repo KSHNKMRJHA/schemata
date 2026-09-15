@@ -40,6 +40,21 @@
         <span class="muted small">Sandbox apps only answer on the sandbox host — production apps reject sandbox credentials (HTTP 401 Invalid clientId).</span>
       </label>
 
+      <label class="field" for="field-nexar-id">
+        <span class="field-label">Nexar — Client ID</span>
+        <input id="field-nexar-id" name="nexar_client_id" type="password" class="mpn-input field-input"
+               placeholder="{% if current.nexar_client_id %}saved — leave blank to keep{% else %}client_credentials id (nexar.com{% endif %}"
+               value="">
+      </label>
+
+      <label class="field" for="field-nexar-secret">
+        <span class="field-label">Nexar — Client Secret</span>
+        <input id="field-nexar-secret" name="nexar_client_secret" type="password" class="mpn-input field-input"
+               placeholder="{% if current.nexar_client_secret %}saved — leave blank to keep{% else %}client secret{% endif %}"
+               value="">
+        <span class="muted small">{% if configured.nexar %}<span class="pill green">configured</span>{% else %}not set — demo{% endif %}</span>
+      </label>
+
       <div class="btn-row">
         <button id="saveSettings" class="cta cta-square" type="submit">Save &amp; go live</button>
         <button id="testSettings" class="cta cta-square cta-ghost" type="button">Test connection</button>
@@ -63,6 +78,7 @@
         <tbody>
           <tr><td class="tag">Mouser</td><td>{% if configured.mouser %}<span class="pill green">live API</span>{% else %}<span class="pill blue">demo — no key</span>{% endif %}</td></tr>
           <tr><td class="tag">DigiKey</td><td>{% if configured.digikey %}<span class="pill green">live API</span>{% else %}<span class="pill blue">demo — no creds</span>{% endif %}</td></tr>
+          <tr><td class="tag">Nexar</td><td>{% if configured.nexar %}<span class="pill green">live API</span>{% else %}<span class="pill blue">demo — no creds</span>{% endif %}</td></tr>
           <tr><td class="tag">Farnell</td><td><span class="pill blue">demo — no free API</span></td></tr>
           <tr><td class="tag">RS / TME / LCSC</td><td><span class="pill blue">demo — no free API</span></td></tr>
           <tr><td class="tag">Manufacturer</td><td><span class="pill blue">demo — lifecycle/PCN</span></td></tr>

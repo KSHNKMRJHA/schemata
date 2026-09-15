@@ -16,10 +16,12 @@ from app.sources.local import (
     lcsc_stub,
     manufacturer_stub,
     mouser_stub,
+    nexar_stub,
     rs_stub,
     tme_stub,
 )
 from app.sources.mouser import MouserAdapter
+from app.sources.nexar import NexarAdapter
 
 
 class Orchestrator:
@@ -31,9 +33,11 @@ class Orchestrator:
     def _build_adapters(self) -> list:
         mouser = MouserAdapter()
         digikey = DigiKeyAdapter()
+        nexar = NexarAdapter()
         adapters = []
         adapters.append(mouser if mouser.available else mouser_stub)
         adapters.append(digikey if digikey.available else digikey_stub)
+        adapters.append(nexar if nexar.available else nexar_stub)
         adapters += [manufacturer_stub, farnell_stub, rs_stub, tme_stub, lcsc_stub]
         return adapters
 
@@ -78,6 +82,7 @@ class Orchestrator:
         return {
             "mouser": bool(s.mouser_api_key),
             "digikey": bool(s.digikey_client_id and s.digikey_client_secret),
+            "nexar": bool(s.nexar_client_id and s.nexar_client_secret),
         }
 
 

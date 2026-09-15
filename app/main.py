@@ -40,7 +40,8 @@ from app.lifecycle import (
 from app.orchestrator import get_orchestrator, reload_orchestrator
 from app.ratelimit import api_rate_limit
 from app.service import get_part_report, recent_parts
-from app.sources.digikey import reset_token_cache
+from app.sources.digikey import reset_token_cache as reset_digikey_token_cache
+from app.sources.nexar import reset_token_cache as reset_nexar_token_cache
 
 logger = logging.getLogger(__name__)
 
@@ -336,6 +337,8 @@ class SettingsPayload(BaseModel):
     digikey_client_id: str = ""
     digikey_client_secret: str = ""
     digikey_sandbox: bool = False
+    nexar_client_id: str = ""
+    nexar_client_secret: str = ""
 
 
 @app.get("/settings", response_class=HTMLResponse)
@@ -351,6 +354,8 @@ def settings_page():
                 "digikey_client_id": _masked(s.digikey_client_id),
                 "digikey_client_secret": _masked(s.digikey_client_secret),
                 "digikey_sandbox": s.digikey_sandbox,
+                "nexar_client_id": _masked(s.nexar_client_id),
+                "nexar_client_secret": _masked(s.nexar_client_secret),
             },
             "demo_enabled": True,
             "env_path": str(ENV_PATH),
@@ -375,7 +380,8 @@ def api_settings_save(payload: SettingsPayload, _: None = Depends(api_rate_limit
         logger.warning("Settings save rejected: %s", exc)
         raise HTTPException(status_code=400, detail=str(exc))
     reload_settings()
-    reset_token_cache()
+    reset_digikey_token_cache()
+    reset_nexar_token_cache()
     orch = reload_orchestrator()
     return {
         "saved": written,

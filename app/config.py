@@ -48,11 +48,20 @@ class Secrets(BaseSettings):
     digikey_client_id: str = ""
     digikey_client_secret: str = ""
     digikey_sandbox: bool = False
+    nexar_client_id: str = ""
+    nexar_client_secret: str = ""
     database_url: str = f"sqlite:///{DATA_DIR / 'part_intel.db'}"
     demo_data: bool = True
 
 
-_ENV_KEYS = ("mouser_api_key", "digikey_client_id", "digikey_client_secret", "digikey_sandbox")
+_ENV_KEYS = (
+    "mouser_api_key",
+    "digikey_client_id",
+    "digikey_client_secret",
+    "digikey_sandbox",
+    "nexar_client_id",
+    "nexar_client_secret",
+)
 
 
 def _load_toml() -> dict:
@@ -99,6 +108,8 @@ _FIELD_TO_ENV = {
     "digikey_client_id": "DIGIKEY_CLIENT_ID",
     "digikey_client_secret": "DIGIKEY_CLIENT_SECRET",
     "digikey_sandbox": "DIGIKEY_SANDBOX",
+    "nexar_client_id": "NEXAR_CLIENT_ID",
+    "nexar_client_secret": "NEXAR_CLIENT_SECRET",
 }
 
 

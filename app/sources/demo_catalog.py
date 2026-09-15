@@ -1,7 +1,7 @@
 """Demo fixture catalog used by stub adapters and seed_demo.
 
 Every value here is plausible-but-synthetic demo data. Real adapters
-(Mouser / DigiKey) replace per-part facts when keys are configured.
+(Mouser / DigiKey / Nexar) replace per-part facts when keys are configured.
 Distributor stock/price figures deliberately mirror the SVG mockups.
 """
 
@@ -76,10 +76,19 @@ def _common_offers(mpn: str, mouser_stock, digi_stock, farnell_stock, unit_price
         (500, round(unit_price * 0.76, 2)),
     ]
     breaks_f = [(1, round(unit_price * 1.02, 2)), (10, round(unit_price * 0.96, 2)), (100, round(unit_price * 0.9, 2))]
+    breaks_n = [
+        (1, round(unit_price * 0.98, 2)),
+        (10, round(unit_price * 0.93, 2)),
+        (100, round(unit_price * 0.87, 2)),
+        (250, round(unit_price * 0.81, 2)),
+    ]
     return {
         "Mouser": _o({"stock": mouser_stock, "lead": _mouser_lead(mpn), "breaks": breaks_m, "url": mouser_url}),
         "DigiKey": _o({"stock": digi_stock, "lead": "10 weeks", "breaks": breaks_d, "url": digi_url}),
         "Farnell": _o({"stock": farnell_stock, "lead": "6 weeks", "breaks": breaks_f, "url": farnell_url}),
+        "Nexar": _o(
+            {"stock": farnell_stock, "lead": "9 weeks", "breaks": breaks_n, "url": f"https://www.nexar.com/parts/{mpn}"}
+        ),
     }
 
 

@@ -2,7 +2,7 @@
 ; Build: ISCC.exe Schemata-setup.iss
 
 #define AppName       "Schemata"
-#define AppVersion    "1.0.1"
+#define AppVersion    "1.0.2"
 #define AppPublisher  "Kishan J."
 #define AppExeName    "Schemata.exe"
 #define SourceDir     "D:\Project\Part_expert\dist\Schemata.dist"
@@ -34,12 +34,12 @@ WizardStyle=modern
 Compression=lzma2/ultra64
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
-VersionInfoVersion=1.0.1.0
+VersionInfoVersion=1.0.2.0
 VersionInfoCompany={#AppPublisher}
 VersionInfoDescription=Schemata - Component Intelligence Platform
 VersionInfoProductName={#AppName}
-VersionInfoProductVersion=1.0.1
-VersionInfoTextVersion=1.0.1
+VersionInfoProductVersion=1.0.2
+VersionInfoTextVersion=1.0.2
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

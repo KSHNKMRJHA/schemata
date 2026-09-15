@@ -23,6 +23,7 @@ concurrency = 4
 # Requests-per-minute per live source (Mouser hard limit is 30/min, 1000/day)
 mouser_per_minute = 25
 digikey_per_minute = 30
+nexar_per_minute = 60
 
 [api]
 # Inbound HTTP API budget per client (requests/min). 0 disables the limiter.
