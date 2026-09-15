@@ -48,7 +48,10 @@ if (Test-Path "$root\dist\launcher.dist") {
 }
 if (Test-Path "$root\dist\launcher.build") { Remove-Item "$root\dist\launcher.build" -Recurse -Force }
 
-# Guard: never ship credential files or the local .env in the distributable.
-$leaked = Get-ChildItem "$root\dist\Schemata.dist" -Include ".env",".env.*","*.pem","*.key" -Recurse -Force -ErrorAction SilentlyContinue
+# Guard: never ship credential files (.env / private keys). CA cert bundles in
+# site-packages (e.g. certifi\cacert.pem) are public TLS roots and are fine.
+$leaked = Get-ChildItem "$root\dist\Schemata.dist" -Recurse -Force -ErrorAction SilentlyContinue | Where-Object {
+    $_.Name -eq '.env' -or $_.Name -like '.env.*' -or $_.Extension -eq '.key' -or $_.Name -like 'id_rsa*' -or $_.Name -like 'id_ed25519*'
+}
 if ($leaked) { throw "CREDENTIAL FILES BUNDLED IN BUILD: $($leaked.FullName -join ', ') - remove before publishing" }
 Write-Host "Build OK. Dist at: $root\dist\Schemata.dist"
