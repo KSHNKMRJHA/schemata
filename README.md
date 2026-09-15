@@ -41,7 +41,7 @@ A **local, privacy-first component intelligence platform** for electronics engin
 
 Use the installer from the **Releases** page, or unzip the portable build:
 
-1. Run `Setup_Schemata_v1.0.0.exe` and follow the wizard (installs the VC++ runtime automatically),
+1. Run `Setup_Schemata_v1.0.1.exe` and follow the wizard (installs the VC++ runtime automatically),
    **or** unzip `Schemata.dist.zip` and run `Schemata.exe` from anywhere.
 2. Click **Start Schemata**. Your browser opens at `http://127.0.0.1:8750`.
 3. First run seeds the demo catalog automatically.
@@ -68,6 +68,37 @@ python -m app.main            # or: part-search
 ---
 
 ## ⚙️ Configuration
+
+### 🔑 Obtaining API keys (optional — needed for live data)
+
+Live distributor data requires keys. Without them the app runs fully offline on the bundled demo catalog.
+
+**Mouser Search API**
+1. Register (free) at <https://www.mouser.com/api-hub/>.
+2. Create an API key under *My Account → API*.
+3. Result: one `MOUSER_API_KEY` token.
+
+**DigiKey Product Information API**
+1. Register at <https://developer.digikey.com>.
+2. Create a new application → you get a **Client ID** and **Client Secret** (OAuth2 two-legged). No approval needed.
+3. Result: `DIGIKEY_CLIENT_ID` + `DIGIKEY_CLIENT_SECRET`.
+
+### 📍 Where to put the keys
+
+| Run mode | Location | How |
+| --- | --- | --- |
+| **From source** | project root → `.env` | Copy `.env.example`, fill values, restart. |
+| **Installed / portable binary** | `%LOCALAPPDATA%\Schemata\.env` | Open the app → **Settings** page → save, **or** edit the file directly. |
+
+Inside the app, the Settings page always works and writes to `%LOCALAPPDATA%\Schemata\.env` per user —
+it never touches the installation folder, so keys survive updates and uninstalls.
+
+> 🔒 **Keys stay on your machine.** They are never bundled into the published executable, zip, or
+> installer (the build pipeline asserts this), never written to the repository, and never sent anywhere
+> except the distributor API you configured. The application also regenerates its own local secrets
+> per user at install time.
+
+### Secrets & tunables
 
 Secrets go in `.env` (copy from `.env.example`); behaviour knobs go in `config.toml`.
 
@@ -106,7 +137,7 @@ DIGIKEY_CLIENT_SECRET=
 # 1) Standalone exe  -> dist\Schemata.dist\Schemata.exe
 powershell -NoProfile -ExecutionPolicy Bypass -File packaging\build_nuitka.ps1
 
-# 2) Inno Setup installer -> dist\installer\Setup_Schemata_v1.0.0.exe
+# 2) Inno Setup installer -> dist\installer\Setup_Schemata_v1.0.1.exe
 & "C:\Users\<you>\AppData\Local\Programs\Inno Setup 6\ISCC.exe" packaging\Schemata-setup.iss
 ```
 

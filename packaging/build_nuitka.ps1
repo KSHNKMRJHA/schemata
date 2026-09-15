@@ -16,11 +16,11 @@ if (Test-Path "$root\dist\Schemata.build") { Remove-Item "$root\dist\Schemata.bu
   "--windows-icon-from-ico=$root\packaging\icon.ico" `
   --windows-product-name=Schemata `
   "--windows-company-name=Kishan J." `
-  --windows-product-version=1.0.0 `
-  --windows-file-version=1.0.0.0 `
+  --windows-product-version=1.0.1 `
+  --windows-file-version=1.0.1.0 `
   "--windows-file-description=Schemata - Component Intelligence Platform" `
   --product-name=Schemata `
-  --product-version=1.0.0 `
+  --product-version=1.0.1 `
   --output-filename=Schemata.exe `
   --mingw64 `
   --lto=yes `
@@ -47,4 +47,8 @@ if (Test-Path "$root\dist\launcher.dist") {
   Move-Item -LiteralPath "$root\dist\launcher.dist" -Destination "$root\dist\Schemata.dist"
 }
 if (Test-Path "$root\dist\launcher.build") { Remove-Item "$root\dist\launcher.build" -Recurse -Force }
+
+# Guard: never ship credential files or the local .env in the distributable.
+$leaked = Get-ChildItem "$root\dist\Schemata.dist" -Include ".env",".env.*","*.pem","*.key" -Recurse -Force -ErrorAction SilentlyContinue
+if ($leaked) { throw "CREDENTIAL FILES BUNDLED IN BUILD: $($leaked.FullName -join ', ') - remove before publishing" }
 Write-Host "Build OK. Dist at: $root\dist\Schemata.dist"

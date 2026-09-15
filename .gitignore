@@ -10,6 +10,11 @@ venv/
 
 # Runtime data & secrets
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*
 data/
 nuitka-crash-report.xml
 
