@@ -50,18 +50,15 @@ class Secrets(BaseSettings):
     digikey_sandbox: bool = False
     nexar_client_id: str = ""
     nexar_client_secret: str = ""
+    arrow_api_key: str = ""
+    arrow_login: str = ""
+    farnell_api_key: str = ""
+    farnell_store: str = ""
+    lcsc_api_key: str = ""
+    lcsc_api_secret: str = ""
+    trustedparts_api_key: str = ""
     database_url: str = f"sqlite:///{DATA_DIR / 'part_intel.db'}"
     demo_data: bool = True
-
-
-_ENV_KEYS = (
-    "mouser_api_key",
-    "digikey_client_id",
-    "digikey_client_secret",
-    "digikey_sandbox",
-    "nexar_client_id",
-    "nexar_client_secret",
-)
 
 
 def _load_toml() -> dict:
@@ -79,10 +76,6 @@ def _cache_cfg() -> dict:
     return _load_toml().get("cache", {})
 
 
-def _orchestrator_cfg() -> dict:
-    return _load_toml().get("orchestrator", {})
-
-
 def _rate_cfg() -> dict:
     return _load_toml().get("rate_limits", {})
 
@@ -97,67 +90,12 @@ def get_settings() -> Secrets:
     return Secrets(_env_file=str(ENV_PATH) if ENV_PATH.exists() else None)
 
 
-def reload_settings() -> None:
-    """Forget cached config after the .env is rewritten so the next read sees new values."""
-    get_settings.cache_clear()
-    config_section.cache_clear()
-
-
-_FIELD_TO_ENV = {
-    "mouser_api_key": "MOUSER_API_KEY",
-    "digikey_client_id": "DIGIKEY_CLIENT_ID",
-    "digikey_client_secret": "DIGIKEY_CLIENT_SECRET",
-    "digikey_sandbox": "DIGIKEY_SANDBOX",
-    "nexar_client_id": "NEXAR_CLIENT_ID",
-    "nexar_client_secret": "NEXAR_CLIENT_SECRET",
-}
-
-
-def write_env(overrides: dict[str, str]) -> list[str]:
-    """Write credential overrides to .env, preserving other keys/comments.
-
-    Returns the list of field names that were actually persisted (non-empty).
-    """
-    ENV_PATH.parent.mkdir(parents=True, exist_ok=True)
-    existing = ""
-    if ENV_PATH.exists():
-        existing = ENV_PATH.read_text(encoding="utf-8")
-    lines = existing.splitlines()
-    changed: set[str] = set()
-    for field, value in overrides.items():
-        env_key = _FIELD_TO_ENV.get(field, field)
-        if isinstance(value, bool):
-            value = "true" if value else "false"
-        else:
-            value = (value or "").strip()
-            if not value:
-                continue
-        if "•" in value:
-            raise ValueError(f"Refusing to store a masked placeholder as a real credential: {field}")
-        pattern = f"{env_key}="
-        replaced = False
-        for i, line in enumerate(lines):
-            if line.strip().startswith(pattern):
-                lines[i] = f"{pattern}{value}"
-                replaced = True
-                changed.add(field)
-                break
-        if not replaced:
-            lines.append(f"{pattern}{value}")
-            changed.add(field)
-    merged = "\n".join(lines).rstrip() + ("\n" if lines else "")
-    ENV_PATH.write_text(merged, encoding="utf-8")
-    return sorted(changed)
-
-
 @lru_cache(maxsize=1)
 def config_section(section: str) -> dict:
     if section == "defaults":
         return _defaults()
     if section == "cache":
         return _cache_cfg()
-    if section == "orchestrator":
-        return _orchestrator_cfg()
     if section == "risk":
         return _risk_cfg()
     if section == "rate_limits":

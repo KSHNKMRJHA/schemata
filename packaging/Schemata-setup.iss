@@ -2,13 +2,15 @@
 ; Build: ISCC.exe Schemata-setup.iss
 
 #define AppName       "Schemata"
-#define AppVersion    "1.0.2"
+#define AppVersion    "2.0.0"
 #define AppPublisher  "Kishan J."
 #define AppExeName    "Schemata.exe"
-#define SourceDir     "D:\Project\Part_expert\dist\Schemata.dist"
-#define OutputDir     "D:\Project\Part_expert\dist\installer"
-#define IconPath      "D:\Project\Part_expert\packaging\icon.ico"
-#define VcRedist      "D:\Project\Part_expert\packaging\vc_redist.x64.exe"
+; Paths are relative to this script's directory (packaging\) so the build is
+; portable. SourcePath resolves to the folder containing this .iss file.
+#define SourceDir     SourcePath + "..\dist\Schemata.dist"
+#define OutputDir     SourcePath + "..\dist\installer"
+#define IconPath      SourcePath + "icon.ico"
+#define VcRedist      SourcePath + "vc_redist.x64.exe"
 
 [Setup]
 AppId={{8F2C1A3E-5D04-4E7B-9C6A-3B1F0C2E9D14}
@@ -34,12 +36,12 @@ WizardStyle=modern
 Compression=lzma2/ultra64
 SolidCompression=yes
 LZMAUseSeparateProcess=yes
-VersionInfoVersion=1.0.2.0
+VersionInfoVersion=2.0.0.0
 VersionInfoCompany={#AppPublisher}
 VersionInfoDescription=Schemata - Component Intelligence Platform
 VersionInfoProductName={#AppName}
-VersionInfoProductVersion=1.0.2
-VersionInfoTextVersion=1.0.2
+VersionInfoProductVersion=2.0.0
+VersionInfoTextVersion=2.0.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

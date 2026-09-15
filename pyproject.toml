@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "part-intelligence"
-version = "1.0.2"
+version = "2.0.0"
 description = "Local Electronic Component Intelligence Platform - lifecycle, availability, pricing, alternatives and BOM risk intelligence"
 requires-python = ">=3.11"
 dependencies = [
@@ -48,7 +48,5 @@ target-version = "py311"
 select = ["E", "F", "W", "I", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
-# Long-but-legitimate data lines (URLs, descriptions) in the demo catalog.
-"tests/fixtures/fixture_catalog.py" = ["E501"]
 # Standalone-export HTML template strings (deliberately compact lines).
 "app/reports.py" = ["E501"]

@@ -1,112 +1,113 @@
-"""Settings surface: .env writer, cache reload, and the /api/settings endpoints."""
+"""Settings surface: the SPA-facing /api/settings and /api/providers endpoints."""
 
 import pytest
 
-from app import config
-
 
 @pytest.fixture(autouse=True)
-def _reset_env(tmp_path, monkeypatch, request):
-    """Isolate .env writes to a temp file and clear caches between tests."""
-    from app.orchestrator import reload_orchestrator
-    from app.sources.digikey import reset_token_cache
+def _reset_engine(tmp_path, monkeypatch):
+    """Isolate engine config/credentials into a temp dir and reset singletons."""
+    from app.engine import bridge
+    from app.engine.bomiq import config as bomiq_config
 
-    monkeypatch.setattr(config, "ENV_PATH", tmp_path / ".env")
-    for key in ("MOUSER_API_KEY", "DIGIKEY_CLIENT_ID", "DIGIKEY_CLIENT_SECRET"):
+    monkeypatch.setenv("SCHEMATA_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setenv("SCHEMATA_CONFIG_DIR", str(tmp_path / "config"))
+    for key in (
+        "MOUSER_API_KEY", "DIGIKEY_CLIENT_ID", "DIGIKEY_CLIENT_SECRET",
+        "NEXAR_CLIENT_ID", "NEXAR_CLIENT_SECRET",
+        "BOMIQ_MOUSER_API_KEY", "BOMIQ_DIGIKEY_CLIENT_ID",
+        "BOMIQ_DIGIKEY_CLIENT_SECRET",
+    ):
         monkeypatch.delenv(key, raising=False)
-    config.get_settings.cache_clear()
-    config.config_section.cache_clear()
-    reload_orchestrator()
-    reset_token_cache()
+    bridge.reset_engine()
+    bomiq_config.reset_config()
     yield
-    config.get_settings.cache_clear()
-    config.config_section.cache_clear()
-    reload_orchestrator()
-    reset_token_cache()
+    bridge.reset_engine()
+    bomiq_config.reset_config()
 
 
-def test_write_env_creates_and_updates_preserving_other_lines():
-    config.ENV_PATH.write_text(
-        "# demo note\nDEMO_DATA=true\nMOUSER_API_KEY=old\n",
-        encoding="utf-8",
-    )
-    written = config.write_env(
-        {"mouser_api_key": "new-key", "digikey_client_id": "cid", "digikey_client_secret": "csecret"}
-    )
-    assert written == ["digikey_client_id", "digikey_client_secret", "mouser_api_key"]
-    text = config.ENV_PATH.read_text(encoding="utf-8")
-    assert "# demo note" in text
-    assert "DEMO_DATA=true" in text
-    assert "MOUSER_API_KEY=new-key" in text
-    assert "DIGIKEY_CLIENT_ID=cid" in text
-    assert "DIGIKEY_CLIENT_SECRET=csecret" in text
-
-
-def test_write_env_skips_empty_values():
-    config.ENV_PATH.write_text("MOUSER_API_KEY=old\n", encoding="utf-8")
-    written = config.write_env({"mouser_api_key": "", "digikey_client_id": "cid"})
-    assert written == ["digikey_client_id"]
-    text = config.ENV_PATH.read_text(encoding="utf-8")
-    assert "MOUSER_API_KEY=old" in text
-    assert "DIGIKEY_CLIENT_ID=cid" in text
-
-
-def test_write_env_rejects_masked_placeholder():
-    with pytest.raises(ValueError, match="masked placeholder"):
-        config.write_env({"mouser_api_key": "••••••••abcd"})
-
-
-def test_settings_page_does_not_leak_mask_into_input_value():
+def _client():
     from fastapi.testclient import TestClient
 
     from app import main
 
-    with TestClient(main.app) as client:
-        resp = client.get("/settings")
+    return TestClient(main.app)
+
+
+def test_get_settings_returns_engine_dict():
+    with _client() as client:
+        resp = client.get("/api/settings")
     assert resp.status_code == 200
-    assert "value=\"" in resp.text
-    assert "••" not in resp.text
+    data = resp.json()
+    assert "build_quantity" in data
+    assert "currency" in data
+    assert data["build_quantity"] == 100
 
 
-def test_reload_settings_picks_up_written_keys():
-    config.write_env({"mouser_api_key": "live-key"})
-    config.reload_settings()
-    from app.config import get_settings
+def test_post_settings_updates_engine_settings():
+    with _client() as client:
+        resp = client.post("/api/settings", json={"build_quantity": 250})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "build_quantity" in data["changed"]
+    assert data["settings"]["build_quantity"] == 250
+    assert isinstance(data["settings"]["currency"], str)
+    # no keys configured -> only the offline catalogue is usable
+    assert data["enabled_providers"] == ["mock"]
 
-    assert get_settings().mouser_api_key == "live-key"
+
+def test_post_settings_ignores_unknown_keys():
+    with _client() as client:
+        resp = client.post("/api/settings", json={"not_a_setting": 42})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["changed"] == []
+    assert "not_a_setting" not in data["settings"]
 
 
-def test_settings_api_save_updates_configured_state():
-    from fastapi.testclient import TestClient
-
-    from app import main
-
-    with TestClient(main.app) as client:
+def test_credentials_set_then_clear():
+    with _client() as client:
         resp = client.post(
-            "/api/settings",
-            json={"mouser_api_key": "m-123", "digikey_client_id": "", "digikey_client_secret": ""},
+            "/api/providers/mouser/credentials",
+            json={"credentials": {"api_key": "k-123"}},
         )
     assert resp.status_code == 200
-    data = resp.json()
-    assert data["configured"]["mouser"] is True
-    assert data["configured"]["digikey"] is False
-    assert "Mouser" in data["live"]
-    assert config.ENV_PATH.exists()
-    assert "MOUSER_API_KEY=m-123" in config.ENV_PATH.read_text(encoding="utf-8")
+    assert resp.json()["configured"] is True
 
-
-def test_settings_api_test_marks_demo_sources_without_network():
-    from fastapi.testclient import TestClient
-
-    from app import main
-
-    with TestClient(main.app) as client:
-        resp = client.post("/api/settings/test")
+    with _client() as client:
+        resp = client.get("/api/settings")
     assert resp.status_code == 200
-    data = resp.json()
-    assert data["probe"]
-    assert data["sources"]
-    # no keys configured -> every source is demo, nothing hits the network
-    for entry in data["sources"].values():
-        assert entry["configured"] is False
-        assert "demo" in entry["note"]
+
+    with _client() as client:
+        resp = client.delete("/api/providers/mouser/credentials")
+    assert resp.status_code == 200
+    assert resp.json()["configured"] is False
+
+
+def test_credentials_reject_unknown_provider():
+    with _client() as client:
+        resp = client.post(
+            "/api/providers/nope/credentials",
+            json={"credentials": {"api_key": "x"}},
+        )
+    assert resp.status_code == 404
+
+
+def test_credentials_reject_empty_fieldset():
+    with _client() as client:
+        resp = client.post(
+            "/api/providers/mouser/credentials",
+            json={"credentials": {"not_a_key": "x"}},
+        )
+    assert resp.status_code == 400
+    assert "api_key" in str(resp.json()["detail"])
+
+
+def test_test_providers_runs_offline_without_network():
+    with _client() as client:
+        resp = client.post("/api/providers/test", json={"providers": []})
+    assert resp.status_code == 200
+    results = resp.json()["results"]
+    assert isinstance(results, list)
+    assert results, "the offline catalogue must always produce a self-test"
+    for entry in results:
+        assert "provider" in entry

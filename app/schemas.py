@@ -119,30 +119,3 @@ class PartReportOut(BaseModel):
     risk: RiskOut
     alternatives: list[AlternativeScore]
     confidence: float
-
-
-class BomLine(BaseModel):
-    seq: int
-    reference: str
-    mpn: str
-    manufacturer: str = ""
-    qty: int = 1
-    target_price: float | None = None
-    component: ComponentOut | None = None
-    risk: RiskOut | None = None
-    alternatives: list[AlternativeScore] = []
-    cost_estimate: float | None = None
-    errors: list[str] = []
-
-
-class BomReportOut(BaseModel):
-    filename: str
-    total_lines: int
-    ok_lines: int
-    error_lines: int
-    lifecycle_distribution: dict[str, int]
-    risk_distribution: dict[str, int]
-    critical_parts: list[BomLine]
-    total_cost_estimate: float | None
-    currency: str
-    lines: list[BomLine]

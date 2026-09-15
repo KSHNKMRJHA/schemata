@@ -1,10 +1,11 @@
 # Compile the packaged Schemata app with Nuitka (standalone/dist folder).
-# Produces D:\Project\Part_expert\dist\Schemata.dist\Schemata.exe
+# Produces dist\Schemata.dist\Schemata.exe relative to the repo root.
 $ErrorActionPreference = "Stop"
-Set-Location 'D:\Project\Part_expert'
 
-$py = 'D:\Project\Part_expert\.venv\Scripts\python.exe'
-$root = 'D:\Project\Part_expert'
+$root = Split-Path -Parent $PSScriptRoot
+Set-Location $root
+
+$py = Join-Path $root '.venv\Scripts\python.exe'
 
 if (Test-Path "$root\dist\Schemata.dist") { Remove-Item "$root\dist\Schemata.dist" -Recurse -Force }
 if (Test-Path "$root\dist\Schemata.build") { Remove-Item "$root\dist\Schemata.build" -Recurse -Force }
@@ -16,11 +17,11 @@ if (Test-Path "$root\dist\Schemata.build") { Remove-Item "$root\dist\Schemata.bu
   "--windows-icon-from-ico=$root\packaging\icon.ico" `
   --windows-product-name=Schemata `
   "--windows-company-name=Kishan J." `
-  --windows-product-version=1.0.2 `
-  --windows-file-version=1.0.2.0 `
+  --windows-product-version=2.0.0 `
+  --windows-file-version=2.0.0.0 `
   "--windows-file-description=Schemata - Component Intelligence Platform" `
   --product-name=Schemata `
-  --product-version=1.0.2 `
+  --product-version=2.0.0 `
   --output-filename=Schemata.exe `
   --mingw64 `
   --lto=yes `

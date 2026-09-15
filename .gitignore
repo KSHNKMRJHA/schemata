@@ -29,6 +29,9 @@ htmlcov/
 ginee.csv
 ginee.xlsx
 
+# Vendored upstream source (kept for reference; published engine lives in app/engine)
+bom-analyzer/
+
 # OS / editor
 Thumbs.db
 .DS_Store

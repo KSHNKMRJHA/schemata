@@ -9,8 +9,14 @@ from sqlalchemy.orm import selectinload
 
 from app import schemas
 from app.alternatives import rank_alternatives
-from app.config import config_section, currency, region
+from app.config import config_section
 from app.db import session_scope
+from app.engine.parts_bridge import (
+    catalogue_parts,
+    lookup_part,
+    part_to_candidate,
+    source_status,
+)
 from app.history import build_history
 from app.models import (
     AvailabilitySnapshot,
@@ -19,9 +25,7 @@ from app.models import (
     LifecycleEvent,
 )
 from app.normalizer import normalize
-from app.orchestrator import get_orchestrator
 from app.risk import assess
-from app.sources.demo_catalog import CATALOG
 from app.util import utcnow
 from app.validate import merge_results
 
@@ -72,7 +76,7 @@ def _needs_fetch(component: Component | None, force: bool) -> bool:
 
 async def fetch_and_store(mpn: str, manufacturer: str | None = None) -> Component:
     norm = normalize(mpn, manufacturer)
-    results = await get_orchestrator().collect(norm.mpn_normalized, norm.manufacturer_hint, region(), currency())
+    results = await lookup_part(norm.mpn_normalized, norm.manufacturer_hint)
     return persist(results, norm.mpn_normalized)
 
 
@@ -214,25 +218,10 @@ def _candidates(target: dict) -> list[dict]:
             if comp.mpn_normalized == target["mpn_normalized"]:
                 continue
             pool.append(component_report_dict(comp))
-    for mpn in CATALOG:
-        if mpn == target["mpn_normalized"]:
+    for part in catalogue_parts():
+        if part.mpn.upper() == target["mpn_normalized"].upper():
             continue
-        part = CATALOG[mpn]
-        pool.append(
-            {
-                "mpn": mpn,
-                "manufacturer": part.manufacturer,
-                "category": part.category,
-                "description": part.description,
-                "package": part.package,
-                "lifecycle_status": part.lifecycle,
-                "operating_voltage": part.voltage,
-                "current": part.current,
-                "frequency": part.frequency,
-                "temperature": part.temperature,
-                "available": any(o["stock"] > 0 for o in part.offers.values()),
-            }
-        )
+        pool.append(part_to_candidate(part))
     return pool
 
 
@@ -318,7 +307,7 @@ async def get_part_report(mpn: str, manufacturer: str | None = None, force: bool
     with session_scope() as s:
         comp = _load_component(s, norm.mpn_normalized, must=True)
         history = build_history(comp.snapshots)
-        risk = assess(comp, history, get_orchestrator().live_sources())
+        risk = assess(comp, history, source_status()["live"])
         target = component_report_dict(comp)
         alts = rank_alternatives(target, _candidates(target))
 

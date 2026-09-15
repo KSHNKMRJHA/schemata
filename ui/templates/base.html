@@ -11,8 +11,7 @@
   <a class="brand" href="/parts">Schemata<span class="brand-dot">.</span></a>
   <nav class="nav">
     <a href="/parts">Part library</a>
-    <a href="/bom">BOM desk</a>
-    <a href="/settings">Sources</a>
+    <a href="/bom-iq">BOM Analyzer</a>
   </nav>
   <span class="source-cue">
     {% if live_sources %}<span class="dot-live"></span>{{ live_sources|length }} live sources{% else %}<span class="dot-demo"></span>demo catalog{% endif %}
@@ -23,7 +22,8 @@
 </main>
 <footer class="footer">
   <span>Schemata — component intelligence workbench</span>
-  <span class="footer-rule">source-backed data • timestamps on every value • nothing invented</span>
+  <span>Designer: Kishan J. &middot; Made in &lt;3 with AI</span>
+  <span class="footer-rule">source-backed data &middot; timestamps on every value &middot; nothing invented</span>
 </footer>
 {% block scripts %}{% endblock %}
 </body>
