@@ -115,7 +115,7 @@ if sys.platform == "darwin":
         coll if not ONEFILE else exe,
         name=f"{APP_NAME}.app",
         icon=icon,
-        bundle_identifier="com.ltts.bomiq",
+        bundle_identifier="com.tajz.bomiq",
         version=__version__,
         info_plist={
             "CFBundleName": APP_NAME,
