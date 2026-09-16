@@ -122,6 +122,15 @@ def test_login_post_invalid_token(monkeypatch) -> None:
         assert "Invalid token" in resp.text
 
 
+def test_login_post_token_with_plus(monkeypatch) -> None:
+    token = "abc+def=ghi"
+    monkeypatch.setenv("SCHEMATA_ACCESS_TOKEN", token)
+    with _client() as c:
+        resp = c.post("/login", data={"token": token}, follow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers["location"] == "/parts"
+
+
 def test_login_redirects_home_when_no_token_env(monkeypatch) -> None:
     monkeypatch.delenv("SCHEMATA_ACCESS_TOKEN", raising=False)
     with _client() as c:

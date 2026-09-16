@@ -132,18 +132,29 @@ def login_get(next: str = "/parts"):
 async def login_post(request: Request, next: str = "/parts"):
     correct = os.environ.get(_ACCESS_TOKEN_ENV, "").strip()
     if not correct:
-        return RedirectResponse("/parts")
-    body = await request.form()
-    supplied = (body.get("token") or "").strip()
-    if supplied and secrets.compare_digest(supplied, correct):
-        digest = _access_token_hash(correct)
-        response = RedirectResponse(next, status_code=302)
-        response.set_cookie(
-            _ACCESS_COOKIE, digest,
-            max_age=7 * 86400, httponly=True, samesite="strict",
-            secure=request.url.scheme == "https",
-        )
-        return response
+        return RedirectResponse("/parts", status_code=302)
+    body_bytes = await request.body()
+    body_str = body_bytes.decode("utf-8", errors="ignore")
+    candidates: list[str] = []
+    form = await request.form()
+    decoded = (form.get("token") or "").strip()
+    if decoded:
+        candidates.append(decoded)
+    raw_match = _RAW_TOKEN_RE.search(body_str)
+    if raw_match:
+        raw = raw_match.group(1)
+        if raw and raw != decoded:
+            candidates.append(raw)
+    for candidate in candidates:
+        if secrets.compare_digest(candidate, correct):
+            digest = _access_token_hash(correct)
+            response = RedirectResponse(next, status_code=302)
+            response.set_cookie(
+                _ACCESS_COOKIE, digest,
+                max_age=7 * 86400, httponly=True, samesite="strict",
+                secure=request.url.scheme == "https",
+            )
+            return response
     return _render("login.html", {"next": next, "error": "Invalid token — try again."})
 
 _env = Environment(
