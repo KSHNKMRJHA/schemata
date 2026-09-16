@@ -2,7 +2,9 @@
 
 A **local, privacy-first component intelligence platform** for electronics engineers and procurement. `Schemata` tracks a component's full lifecycle: search a part number, see its lifecycle status, distributor stock & pricing, engineering risk, and replacement candidates — then roll a whole **BOM** through a line-by-line procurement risk pipeline.
 
-> Runs 100% locally. The server binds to `127.0.0.1` only. Nothing leaves your machine except direct look-ups to Mouser / DigiKey / Nexar (Octopart) / Arrow / Farnell / LCSC / TrustedParts when you configure API keys. No telemetry, no accounts, no cloud.
+> **Try it live** — <https://schemata-359w.onrender.com> (free tier, see [Live Web](#-live-web-schemata-on-render) below).
+>
+> Runs 100% locally by default. The server binds to `127.0.0.1` only. Nothing leaves your machine except direct look-ups to Mouser / DigiKey / Nexar (Octopart) / Arrow / Farnell / LCSC / TrustedParts when you configure API keys. No telemetry, no accounts, no cloud.
 
 ---
 
@@ -173,25 +175,25 @@ about two minutes.
    <https://github.com/KSHNKMRJHA/schemata>).
 2. In the Render dashboard: **New + → Blueprint** → connect the `schemata` repo.
 3. Render builds, starts the server and returns a public URL
-   (`https://schemata.onrender.com` unless you rename it).
+   (`https://schemata-359w.onrender.com` unless you rename it).
 
 **First visit** — the deployment generates a random API token automatically
-(`SCHEMATA_ACCESS_TOKEN`, shown in the service's **Environment** tab). Open:
+(`SCHEMATA_ACCESS_TOKEN`, visible in the service's **Environment** tab). Open
+the URL in a browser — a **login page** appears. Paste the token and click
+**Access Schemata** to start. A session cookie is set for 7 days.
+
+You can also authenticate by appending the token as a query parameter:
 
 ```
 https://<your-app>.onrender.com/?token=<SCHEMATA_ACCESS_TOKEN>
 ```
 
-The token briefly authenticates you and sets a session cookie; every later
-page/API call works normally. Without the token every route returns **401**.
-Tokens keep any special characters (`+`, `=`, …) — paste it verbatim, no URL
-encoding needed.
+This is useful for programmatic access (curl, API clients). The token accepts
+its raw form — `+` and `=` characters need no URL encoding.
 
 **Add live data keys** — in the same Environment tab, add the source keys you
-want (e.g. `MOUSER_API_KEY`, `DIGIKEY_CLIENT_ID` + `DIGIKEY_CLIENT_SECRET`,
-`NEXAR_CLIENT_ID` + `NEXAR_CLIENT_SECRET`, `ARROW_API_KEY`,
-`FARNELL_API_KEY`, `LCSC_API_KEY` + `LCSC_API_SECRET`,
-`TRUSTEDPARTS_API_KEY`), then **Manual Deploy**.
+want (see [Live Web](#-live-web-schemata-on-render) for the full list), then
+**Manual Deploy**.
 
 **Free-tier caveats**
 - The instance **sleeps after ~15 min idle** — the first request after a nap
@@ -202,10 +204,60 @@ want (e.g. `MOUSER_API_KEY`, `DIGIKEY_CLIENT_ID` + `DIGIKEY_CLIENT_SECRET`,
 
 ---
 
+## 🌐 Live Web — Schemata on Render
+
+A public instance runs on Render's free tier:
+
+**<https://schemata-359w.onrender.com>**
+
+### First visit
+
+1. Open the URL — you'll see a **login page**.
+2. Paste the shared access token (ask the deployer for it) and click **Access Schemata**.
+3. A session cookie is set for 7 days; the whole app (search, BOM IQ, part dossier) works normally.
+
+> Tokens with `+` or `=` characters (common in base64) paste directly into the form — no URL encoding needed.
+
+### What works on the live instance
+
+| Feature | Status |
+| --- | --- |
+| Part search (MPN lookup) | works — uses Offline Catalogue unless API keys are configured |
+| Part dossier (lifecycle, risk, alternatives) | works — same as above |
+| BOM upload & analysis (CSV / TXT / XLSX) | works |
+| BOM export (HTML / JSON / CSV) | works |
+| BOM IQ dashboard | works |
+| Provider settings (add/remove keys) | works — keys persist per session |
+| Demo catalog (zero-config) | always available as fallback |
+
+### Adding live distributor data on Render
+
+In the Render dashboard → **Environment** tab, add the keys you want:
+
+```
+NEXAR_CLIENT_ID=             NEXAR_CLIENT_SECRET=
+DIGIKEY_CLIENT_ID=           DIGIKEY_CLIENT_SECRET=
+MOUSER_API_KEY=
+ARROW_API_KEY=
+FARNELL_API_KEY=
+LCSC_API_KEY=                LCSC_API_SECRET=
+TRUSTEDPARTS_API_KEY=
+```
+
+Then click **Manual Deploy**. The keys appear in *Settings → Providers* in the app.
+
+### Free-tier caveats
+
+- **Sleeps after ~15 min idle** — first request after a nap takes ~1 min (cold start).
+- **Ephemeral storage** — SQLite database and cached reports reset on restart/redeploy.
+- API keys survive as env vars; long-term data persistence requires a managed Postgres or volume.
+
+---
+
 ## 🛠️ Development
 
 ```powershell
-.\.venv\Scripts\python -m pytest          # 46 tests
+.\.venv\Scripts\python -m pytest          # 47 tests
 .\.venv\Scripts\python -m ruff check app ui tests
 ```
 
@@ -227,28 +279,83 @@ Requires `Nuitka` (in `[dev]` extras), a MinGW64 toolchain, and **Inno Setup 6**
 
 | Method | Path | Description |
 | --- | --- | --- |
+| `GET` | `/healthz` | Health check (always 200) |
+| `GET` | `/` | Root — redirects to `/parts` (or `/login` when token gate is active) |
+| `GET` | `/login` | Token login page (no token needed to render) |
+| `POST` | `/login` | Validate token, set session cookie, redirect to requested page |
 | `GET` | `/api/parts?limit=` | Recently seen components (1–500) |
 | `GET` | `/api/parts/{mpn}` | Full part dossier (JSON) |
 | `GET` | `/api/sources` | Configured live/mock source status |
+| `GET` | `/api/providers` | Provider list with credential status and badges |
 | `POST` | `/api/settings` | Persist credential overrides |
 | `POST` | `/api/settings/test` | Probe configured live sources |
-| `POST` | `/bom/analyze` | Upload & analyze a BOM (multipart) |
+| `POST` | `/api/part` | Single-part lookup (`?mpn=…`) |
+| `POST` | `/api/search` | Keyword search across configured providers |
+| `POST` | `/api/analyse` | BOM analysis (JSON lines array) |
+| `POST` | `/bom/analyze` | Upload & analyze a BOM (multipart form) |
 | `GET` | `/bom/export/{token}.{html,json,csv}` | Export a BOM report |
+| `GET` | `/bom-iq/` | BOM IQ dashboard |
+| `GET` | `/parts` | Parts list page |
 
 All `/api/*` endpoints are rate-limited (`[api] requests_per_minute`, default 600/min).
+When `SCHEMATA_ACCESS_TOKEN` is set (Render deployment), all routes except `/healthz`,
+`/login` and `/static/*` require a valid token (cookie, `?token=`, or `Authorization: Bearer`).
 
 ---
 
 ## 🗂️ Project layout
 
 ```
-app/            Backend: config, models, sources (mouser/digikey/nexar/arrow/farnell/
-                lcsc/trustedparts/mock), orchestrator, service, BOM engine, reports, FastAPI app
-ui/             Jinja2 templates, CSS and vanilla JS
-packaging/      launcher.py (Tk start window), Nuitka build, Inno Setup .iss
-tests/          pytest suite (unit + API integration)
-config.toml     Runtime tunables
-.env.example    Credentials template
+app/
+  __init__.py         Package root (__version__)
+  main.py             FastAPI app, lifespan, token middleware, page routes
+  config.py           BASE_DIR / DATA_DIR / UI_DIR paths
+  sources/            Legacy source adapters (now wrapped by bomiq/providers)
+  service.py          Report pipeline, catalogue service
+  engine/
+    parts_bridge.py   Legacy lookup bridge (source_status, lookup_part)
+    routes.py         /api/part, /api/search, /api/analyse, /api/providers
+    bomiq/
+      config.py       ProviderSpec, credentials, settings, describe_providers
+      engine.py       BOM analysis engine (orchestrates providers)
+      version.py      BOM IQ version
+      providers/
+        registry.py   ProviderRegistry — parallel fan-out, merge, self_test
+        base.py       BaseProvider, rate-limit, merge_parts
+        mock.py       Offline demo catalogue
+        mouser.py     Mouser Search API
+        digikey.py    DigiKey Product Information (OAuth2)
+        nexar.py      Nexar / Octopart GraphQL
+        arrow.py      Arrow Electronics
+        farnell.py    Farnell / element14
+        lcsc.py       LCSC Electronics (keyless public endpoints)
+        trustedparts.py TrustedParts aggregator
+ui/
+  templates/
+    base.html         Base layout (topbar, footer, head)
+    index.html        Home / landing page
+    login.html        Token login page
+    parts.html        Parts list
+    search.html       Part search (legacy)
+    bom.html          BOM upload & report
+    report.html       BOM report view
+    bom-iq.html       BOM IQ dashboard
+  static/
+    css/style.css     Application styles
+    js/               Vanilla JS (app logic, charts)
+render.yaml           Render Blueprint (free-tier deployment)
+pyproject.toml        Package metadata, deps, entry points
+config.toml           Runtime tunables (cache, rate limits, risk weights)
+.env.example          Credentials template
+packaging/
+  build_nuitka.ps1    Nuitka standalone build
+  Schemata-setup.iss  Inno Setup installer script
+  launcher.py         Tk desktop launcher
+tests/
+  test_token_gate.py  Auth gate + login flow (13 tests)
+  test_service.py     Service / report tests
+  test_api.py         API integration tests
+  ...                 Unit tests for engine, BOM, providers
 ```
 
 ---
