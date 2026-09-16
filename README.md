@@ -42,7 +42,7 @@ A **local, privacy-first component intelligence platform** for electronics engin
 
 Use the installer from the **Releases** page, or unzip the portable build:
 
-1. Run `Setup_Schemata_v2.2.0.exe` and follow the wizard (installs the VC++ runtime automatically),
+1. Run `Setup_Schemata_v2.3.0.exe` and follow the wizard (installs the VC++ runtime automatically),
    **or** unzip `Schemata.dist.zip` and run `Schemata.exe` from anywhere.
 2. Click **Start Schemata**. Your browser opens at `http://127.0.0.1:8750`.
 3. First run seeds the demo catalog automatically.
@@ -215,7 +215,7 @@ want (e.g. `MOUSER_API_KEY`, `DIGIKEY_CLIENT_ID` + `DIGIKEY_CLIENT_SECRET`,
 # 1) Standalone exe  -> dist\Schemata.dist\Schemata.exe
 powershell -NoProfile -ExecutionPolicy Bypass -File packaging\build_nuitka.ps1
 
-# 2) Inno Setup installer -> dist\installer\Setup_Schemata_v2.2.0.exe
+# 2) Inno Setup installer -> dist\installer\Setup_Schemata_v2.3.0.exe
 & "C:\Users\<you>\AppData\Local\Programs\Inno Setup 6\ISCC.exe" packaging\Schemata-setup.iss
 ```
 
