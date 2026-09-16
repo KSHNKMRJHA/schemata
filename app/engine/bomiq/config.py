@@ -271,7 +271,7 @@ TRUSTEDPARTS = _register(ProviderSpec(
     id="trustedparts", name="TrustedParts", kind="aggregator",
     credentials=(
         CredentialField("api_key", ("TRUSTEDPARTS_API_KEY",), "API Key",
-                        required=False),
+                        required=True),
     ),
     signup_url="https://www.trustedparts.com/",
     docs_url="https://www.trustedparts.com/en/about",
