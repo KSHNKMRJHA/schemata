@@ -9,8 +9,9 @@ import os
 import re
 import secrets
 from contextlib import asynccontextmanager
+from urllib.parse import quote
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -65,22 +66,23 @@ def _access_token_hash(token: str) -> str:
 
 
 @app.middleware("http")
-async def _require_access_token(request, call_next):
+async def _require_access_token(request: Request, call_next):
     """Gate every route when SCHEMATA_ACCESS_TOKEN is set (online deployments).
 
-    Local use (no env var) is unaffected. The first request must carry a valid
-    token via ``Authorization: Bearer <token>`` or ``?token=<token>``; a short
-    httponly cookie then authenticates the rest of the session so the single
-    page app and its relative API calls work naturally.
+    Local use (no env var) is unaffected. Unauthenticated *page* requests are
+    redirected to the login screen; ``/api/*`` requests receive the usual 401
+    JSON so the SPA front-end can detect them.
 
     Tokens often contain ``+`` / ``=`` (e.g. base64). Because query parsing
     decodes ``+`` as a space, both the decoded value and the raw URL segment
-    are accepted, so a token can be pasted verbatim.
+    are accepted, so a token can be pasted verbatim into the login form.
     """
     token = os.environ.get(_ACCESS_TOKEN_ENV, "").strip()
     if not token:
         return await call_next(request)
-    if request.url.path == "/healthz":
+
+    path = request.url.path
+    if path in ("/healthz", "/login") or path.startswith("/static/"):
         return await call_next(request)
 
     digest = _access_token_hash(token)
@@ -105,23 +107,44 @@ async def _require_access_token(request, call_next):
                 secure=request.url.scheme == "https",
             )
             return response
-    if candidates:
-        response = JSONResponse(status_code=401, content={"detail": "unauthorized"})
-        response.delete_cookie(_ACCESS_COOKIE)
-        return response
     if secrets.compare_digest(request.cookies.get(_ACCESS_COOKIE, ""), digest):
         return await call_next(request)
-    return JSONResponse(
-        status_code=401,
-        content={"detail": "unauthorized",
-                 "hint": "append ?token=<SCHEMATA_ACCESS_TOKEN> or send "
-                         "Authorization: Bearer <token>"},
+    if path.startswith("/api/"):
+        return JSONResponse(status_code=401, content={"detail": "unauthorized"})
+    return RedirectResponse(
+        f"/login?next={quote(path, safe='')}", status_code=302,
     )
 
 
 @app.get("/healthz", include_in_schema=False)
 def healthz():
     return {"ok": True}
+
+
+@app.get("/login", response_class=HTMLResponse, include_in_schema=False)
+def login_get(next: str = "/parts"):
+    if not os.environ.get(_ACCESS_TOKEN_ENV, "").strip():
+        return RedirectResponse("/parts", status_code=302)
+    return _render("login.html", {"next": next, "error": None})
+
+
+@app.post("/login", response_class=HTMLResponse, include_in_schema=False)
+async def login_post(request: Request, next: str = "/parts"):
+    correct = os.environ.get(_ACCESS_TOKEN_ENV, "").strip()
+    if not correct:
+        return RedirectResponse("/parts")
+    body = await request.form()
+    supplied = (body.get("token") or "").strip()
+    if supplied and secrets.compare_digest(supplied, correct):
+        digest = _access_token_hash(correct)
+        response = RedirectResponse(next, status_code=302)
+        response.set_cookie(
+            _ACCESS_COOKIE, digest,
+            max_age=7 * 86400, httponly=True, samesite="strict",
+            secure=request.url.scheme == "https",
+        )
+        return response
+    return _render("login.html", {"next": next, "error": "Invalid token — try again."})
 
 _env = Environment(
     loader=FileSystemLoader(str(UI_DIR / "templates")),

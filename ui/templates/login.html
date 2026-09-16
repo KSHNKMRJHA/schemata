@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Sign in — Schemata{% endblock %}
+{% block content %}
+<style>
+.login-wrap{display:flex;justify-content:center;padding:72px 0 60px}
+.login-card{
+  width:100%;max-width:420px;
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:40px 36px 38px;box-shadow:0 6px 24px rgba(16,34,47,.06);
+}
+.login-card h1{font:700 26px var(--font-disp);margin:0 0 6px;color:var(--ink);letter-spacing:-.3px}
+.login-card p{margin:0 0 24px;color:var(--mut);font-size:14.5px}
+.login-card label{display:block;font:600 11.5px var(--font-disp);letter-spacing:1.1px;color:var(--mut);text-transform:uppercase;margin-bottom:7px}
+.login-card input[type="text"]{
+  width:100%;font:600 15px var(--font-mono);
+  padding:13px 14px;border:2px solid var(--line-hard);border-radius:8px;
+  background:#fff;color:var(--ink);outline:none;
+}
+.login-card input[type="text"]:focus{border-color:var(--brass-deep)}
+.login-card .btn{
+  width:100%;margin-top:20px;
+  font:700 15px var(--font-disp);letter-spacing:.5px;color:#fff;
+  background:var(--ink);border:2px solid var(--ink);border-radius:8px;
+  padding:13px 0;cursor:pointer;
+}
+.login-card .btn:hover{background:var(--brass-deep);border-color:var(--brass-deep)}
+.login-card .err{
+  margin-top:14px;padding:10px 13px;border:1px solid #d48f8f;border-radius:7px;
+  background:#fdecec;color:#8c2f2f;font-size:13.5px;
+}
+.login-card .note{margin-top:22px;font-size:12.5px;color:var(--mut);text-align:center}
+</style>
+<section class="login-wrap">
+  <div class="login-card">
+    <h1>Schemata.</h1>
+    <p>Enter the access token to continue.</p>
+    <form method="post" action="/login{% if next %}?next={{ next }}{% endif %}">
+      <label for="token">Access token</label>
+      <input type="text" name="token" id="token" placeholder="paste your token" autofocus autocomplete="off">
+      <button type="submit" class="btn">Access Schemata</button>
+    </form>
+    {% if error %}<div class="err">{{ error }}</div>{% endif %}
+    <div class="note">Shared token &middot; provided by the instance administrator</div>
+  </div>
+</section>
+{% endblock %}
