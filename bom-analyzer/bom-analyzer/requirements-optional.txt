@@ -1,0 +1,9 @@
+# BOM-IQ runs on the Python standard library alone. Everything here is optional
+# and only makes it faster or adds a format. Install with:
+#     pip install -r requirements-optional.txt
+
+openpyxl>=3.1        # richer .xlsx reading; a built-in reader is used without it
+xlrd>=2.0.1          # legacy .xls files (Excel 97-2003)
+rapidfuzz>=3.0       # ~50x faster fuzzy matching on large BOMs
+keyring>=24.0        # keep API keys in the OS credential store
+pywebview>=4.4       # native desktop window instead of a browser window

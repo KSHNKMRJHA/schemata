@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>BOM-IQ — Part Intelligence &amp; BOM Analyzer</title>
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%233987e5'/><text x='16' y='22' font-family='system-ui' font-size='15' font-weight='800' fill='white' text-anchor='middle'>IQ</text></svg>">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===================== top bar ===================== -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">IQ</span>
+      <span>BOM-IQ <small id="version"></small></span>
+    </div>
+
+    <div class="filechip" id="filechip" hidden>
+      <span id="filename">—</span>
+      <button class="btn ghost sm" id="btn-close-file" title="Close this BOM"
+              aria-label="Close this BOM">✕</button>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="inline" id="build-controls" hidden>
+      <div class="inline" style="gap:6px">
+        <label for="build-qty" class="muted" style="font-size:12px">Build</label>
+        <input type="number" id="build-qty" min="1" step="1" value="100"
+               style="width:86px" aria-label="Build quantity">
+      </div>
+      <select id="currency" aria-label="Currency" style="width:88px"></select>
+      <button class="btn sm" id="btn-reanalyse">Re-run</button>
+    </div>
+
+    <div class="providers" id="provider-chips"></div>
+
+    <button class="btn icon" id="btn-theme" title="Switch theme"
+            aria-label="Switch theme">◐</button>
+    <button class="btn" id="btn-settings">Settings</button>
+    <button class="btn" id="btn-export" disabled>Export ▾</button>
+  </header>
+
+  <!-- ===================== tabs ===================== -->
+  <nav class="tabs" id="tabs" role="tablist" hidden>
+    <button class="tab" role="tab" data-view="dashboard" aria-selected="true">Dashboard</button>
+    <button class="tab" role="tab" data-view="bom" aria-selected="false">BOM<span class="count" id="c-bom"></span></button>
+    <button class="tab" role="tab" data-view="risk" aria-selected="false">Risk<span class="count" id="c-risk"></span></button>
+    <button class="tab" role="tab" data-view="sourcing" aria-selected="false">Sourcing</button>
+    <button class="tab" role="tab" data-view="alternates" aria-selected="false">Alternates<span class="count" id="c-alt"></span></button>
+    <button class="tab" role="tab" data-view="compliance" aria-selected="false">Compliance</button>
+    <button class="tab" role="tab" data-view="issues" aria-selected="false">Findings<span class="count" id="c-issues"></span></button>
+    <button class="tab" role="tab" data-view="search" aria-selected="false">Part search</button>
+  </nav>
+
+  <main class="main">
+
+    <!-- ===================== start ===================== -->
+    <section class="view" id="view-start">
+      <div class="dropzone" id="dropzone">
+        <div class="icon" aria-hidden="true">⬡</div>
+        <h1>Drop a BOM here</h1>
+        <p>
+          BOM-IQ reads the file, works out which column is which, cleans and
+          validates the data, then looks every part up across your distributor
+          APIs to price it, score its supply risk, check compliance and find
+          alternates. Everything runs on this machine.
+        </p>
+        <div class="inline" style="justify-content:center">
+          <button class="btn primary" id="btn-pick">Choose a file…</button>
+          <button class="btn" id="btn-sample">Load a sample BOM</button>
+          <input type="file" id="file-input" hidden
+                 accept=".csv,.tsv,.txt,.xlsx,.xlsm,.xls,.ods,.json,.xml,.htm,.html">
+        </div>
+        <div class="formats" id="formats"></div>
+      </div>
+
+      <div class="grid three" style="margin-top:16px">
+        <div class="card">
+          <h2>Any template</h2>
+          <p class="sub" style="margin:0">
+            Altium, OrCAD, KiCad, Mentor, SAP, Arena, a hand-made spreadsheet —
+            columns are matched by name, by pattern and by what the values
+            actually look like. Confirm once and the layout is remembered.
+          </p>
+        </div>
+        <div class="card">
+          <h2>Seven data sources</h2>
+          <p class="sub" style="margin:0">
+            DigiKey, Mouser, Octopart/Nexar, Arrow, Farnell/element14, LCSC and
+            TrustedParts, queried in parallel and merged. No keys yet? The
+            built-in offline catalogue drives the whole pipeline.
+          </p>
+        </div>
+        <div class="card">
+          <h2>Decisions, not just data</h2>
+          <p class="sub" style="margin:0">
+            Lifecycle and EOL risk, stock against your build, MOQ-aware costing,
+            cheapest sourcing basket, RoHS/REACH/export flags and scored
+            alternates — with the reasoning shown for every number.
+          </p>
+        </div>
+      </div>
+
+      <div class="card" id="recent-card" hidden>
+        <h2>Saved analyses</h2>
+        <p class="sub">Reopen a previous run. Everything is stored locally.</p>
+        <div id="recent-list"></div>
+      </div>
+    </section>
+
+    <!-- ===================== mapping ===================== -->
+    <section class="view" id="view-mapping" hidden>
+      <div id="mapping-banner"></div>
+      <div class="split">
+        <div>
+          <div class="card">
+            <h2>Column mapping</h2>
+            <p class="sub" id="mapping-sub"></p>
+            <div id="map-rows"></div>
+          </div>
+          <div class="card">
+            <h2>Preview</h2>
+            <p class="sub">The first rows as BOM-IQ reads them.</p>
+            <div class="preview" id="map-preview"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h2>Source</h2>
+            <div class="field" style="margin-bottom:11px">
+              <label for="sheet-select">Sheet</label>
+              <select id="sheet-select"></select>
+            </div>
+            <div class="field" style="margin-bottom:11px">
+              <label for="header-row">Header row</label>
+              <input type="number" id="header-row" min="1" step="1">
+              <span class="hint">Row number in the source file.</span>
+            </div>
+            <div class="field" style="gap:9px">
+              <label>Handling</label>
+              <label class="check"><input type="checkbox" id="opt-merge" checked>
+                <span>Merge duplicate part numbers and sum their quantities</span></label>
+              <label class="check"><input type="checkbox" id="opt-refs" checked>
+                <span>Expand designator ranges such as <code>R1-R8</code></span></label>
+              <label class="check"><input type="checkbox" id="opt-blankqty" checked>
+                <span>Treat a blank quantity as 1</span></label>
+              <label class="check"><input type="checkbox" id="opt-sheets" checked>
+                <span>Combine other sheets with the same layout</span></label>
+            </div>
+            <div class="inline" style="margin-top:14px">
+              <button class="btn" id="btn-remap">Apply</button>
+            </div>
+          </div>
+          <div class="card">
+            <h2>Ingestion notes</h2>
+            <div id="ingest-notes" class="sub" style="margin:0"></div>
+          </div>
+          <div class="card">
+            <h2>Ready to analyse</h2>
+            <div class="grid" style="gap:10px">
+              <div class="field">
+                <label for="map-build-qty">Build quantity</label>
+                <input type="number" id="map-build-qty" min="1" value="100">
+                <span class="hint">Drives stock checks, price breaks and MOQ.</span>
+              </div>
+              <div id="provider-summary" class="hint"></div>
+              <button class="btn primary" id="btn-analyse">Analyse BOM</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== running ===================== -->
+    <section class="view" id="view-running" hidden>
+      <div class="card">
+        <h2 id="run-title">Analysing…</h2>
+        <p class="sub" id="run-message">Starting.</p>
+        <div class="progress"><i id="run-bar" style="width:0%"></i></div>
+        <div class="inline" style="margin-top:12px">
+          <span class="muted" id="run-percent">0%</span>
+          <span class="muted" id="run-elapsed"></span>
+          <div class="spacer" style="flex:1"></div>
+          <button class="btn danger" id="btn-cancel">Cancel</button>
+        </div>
+        <div class="stagelog" id="run-log"></div>
+      </div>
+    </section>
+
+    <!-- ===================== results ===================== -->
+    <section class="view" id="view-dashboard" hidden></section>
+    <section class="view" id="view-bom" hidden></section>
+    <section class="view" id="view-risk" hidden></section>
+    <section class="view" id="view-sourcing" hidden></section>
+    <section class="view" id="view-alternates" hidden></section>
+    <section class="view" id="view-compliance" hidden></section>
+    <section class="view" id="view-issues" hidden></section>
+
+    <!-- ===================== part search ===================== -->
+    <section class="view" id="view-search" hidden>
+      <div class="card">
+        <h2>Part search</h2>
+        <p class="sub">
+          Look a part up directly across your enabled providers — useful when
+          choosing a component before it ever reaches a BOM.
+        </p>
+        <div class="toolbar">
+          <input type="search" id="search-input"
+                 placeholder="Part number, or a description such as “0603 10k 1% resistor”">
+          <button class="btn primary" id="btn-search">Search</button>
+        </div>
+        <div id="search-results"></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ===================== drawer ===================== -->
+<aside class="drawer" id="drawer" aria-hidden="true" role="dialog"
+       aria-label="Part detail">
+  <header>
+    <div style="flex:1;min-width:0">
+      <h2 id="drawer-title">—</h2>
+      <div class="sub" id="drawer-sub"></div>
+    </div>
+    <button class="btn ghost" id="btn-drawer-close" aria-label="Close">✕</button>
+  </header>
+  <div class="body" id="drawer-body"></div>
+</aside>
+
+<!-- ===================== settings modal ===================== -->
+<div class="modal" id="settings-modal" hidden>
+  <div class="sheet" role="dialog" aria-label="Settings">
+    <header>
+      <h2>Settings</h2>
+      <div class="spacer" style="flex:1"></div>
+      <button class="btn ghost" id="btn-settings-close" aria-label="Close">✕</button>
+    </header>
+    <div class="body">
+      <div class="subtabs" id="settings-tabs">
+        <button class="subtab" data-pane="providers" aria-selected="true">Providers</button>
+        <button class="subtab" data-pane="analysis" aria-selected="false">Analysis</button>
+        <button class="subtab" data-pane="weights" aria-selected="false">Risk weights</button>
+        <button class="subtab" data-pane="ingest" aria-selected="false">Ingestion</button>
+        <button class="subtab" data-pane="system" aria-selected="false">System</button>
+      </div>
+      <div id="pane-providers"></div>
+      <div id="pane-analysis" hidden></div>
+      <div id="pane-weights" hidden></div>
+      <div id="pane-ingest" hidden></div>
+      <div id="pane-system" hidden></div>
+    </div>
+    <footer>
+      <span class="muted" id="settings-status" style="margin-right:auto"></span>
+      <button class="btn" id="btn-settings-cancel">Close</button>
+      <button class="btn primary" id="btn-settings-save">Save settings</button>
+    </footer>
+  </div>
+</div>
+
+<!-- ===================== export modal ===================== -->
+<div class="modal" id="export-modal" hidden>
+  <div class="sheet" style="width:min(560px,100%)" role="dialog"
+       aria-label="Export">
+    <header>
+      <h2>Export</h2>
+      <div class="spacer" style="flex:1"></div>
+      <button class="btn ghost" id="btn-export-close" aria-label="Close">✕</button>
+    </header>
+    <div class="body" id="export-list"></div>
+    <footer>
+      <button class="btn" id="btn-save-project">Save as project</button>
+      <button class="btn" id="btn-export-cancel">Close</button>
+    </footer>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>

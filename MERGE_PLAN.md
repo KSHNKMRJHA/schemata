@@ -70,7 +70,7 @@ app/engine/
 | `bomiq/config.py` | `app/engine/bomiq/config.py` | Adapt paths for Schemata's data dir |
 | `bomiq/core/*` | `app/engine/bomiq/core/` | Copy all |
 | `bomiq/ingest/*` | `app/engine/bomiq/ingest/` | Copy all |
-| `bomiq/providers/*` | `app/engine/bomiq/providers/` | Copy all, remove L&T branding |
+| `bomiq/providers/*` | `app/engine/bomiq/providers/` | Copy all, remove upstream vendor branding |
 | `bomiq/analysis/*` | `app/engine/bomiq/analysis/` | Copy all |
 | `bomiq/export/*` | `app/engine/bomiq/export/` | Copy all |
 | `bomiq/util/*` | `app/engine/bomiq/util/` | Copy all |
@@ -89,9 +89,9 @@ app/engine/
 ### 1.4 Branding cleanup
 
 In ALL copied files, remove:
-- "L&T Technology Services" / "LTTS" references
+- upstream vendor branding references
 - "BOM-IQ" branding → replace with "Schemata"
-- `com.ltts.bomiq` app ID → `com.schemata.bomiq`
+- `com.<vendor>.bomiq` app ID → `com.schemata.bomiq`
 - Update `__version__` and `__app_name__` in `__init__.py`
 
 ---
@@ -378,7 +378,7 @@ description = "Component Intelligence Platform — lifecycle, availability, pric
 - [ ] Existing `/parts` library still works
 - [ ] Existing `/settings` still works
 - [ ] Nuitka build succeeds
-- [ ] No L&T Technology Services references remain
+- [ ] No upstream vendor branding references remain
 - [ ] All tests pass
 
 ---
