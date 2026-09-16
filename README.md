@@ -2,7 +2,7 @@
 
 A **local, privacy-first component intelligence platform** for electronics engineers and procurement. `Schemata` tracks a component's full lifecycle: search a part number, see its lifecycle status, distributor stock & pricing, engineering risk, and replacement candidates — then roll a whole **BOM** through a line-by-line procurement risk pipeline.
 
-> Runs 100% locally. The server binds to `127.0.0.1` only. Nothing leaves your machine except direct look-ups to Mouser / DigiKey / Nexar when you configure API keys. No telemetry, no accounts, no cloud.
+> Runs 100% locally. The server binds to `127.0.0.1` only. Nothing leaves your machine except direct look-ups to Mouser / DigiKey / Nexar (Octopart) / Arrow / Farnell / LCSC / TrustedParts when you configure API keys. No telemetry, no accounts, no cloud.
 
 ---
 
@@ -22,9 +22,10 @@ A **local, privacy-first component intelligence platform** for electronics engin
   - Export the report as **JSON / CSV / HTML**
 
 - **Sources**
-  - Live adapters: **Mouser Search API**, **DigiKey Product Information + OAuth2**, and **Nexar (Octopart) GraphQL**
+  - Live adapters: **Mouser Search API**, **DigiKey Product Information + OAuth2**, **Nexar (Octopart) GraphQL**, **Arrow Electronics**, **Farnell / element14**, **LCSC Electronics** and **TrustedParts**
   - Built-in **demo catalog** so a fresh install is useful with zero keys
   - "Test connection" probe against live sources from the settings page
+  - Per-source outbound throttle tuned to each provider's hard rate limits
 
 - **Operations**
   - Bounded in-memory BOM cache (TTL + max entries), persistent per-user storage
@@ -41,7 +42,7 @@ A **local, privacy-first component intelligence platform** for electronics engin
 
 Use the installer from the **Releases** page, or unzip the portable build:
 
-1. Run `Setup_Schemata_v2.0.0.exe` and follow the wizard (installs the VC++ runtime automatically),
+1. Run `Setup_Schemata_v2.2.0.exe` and follow the wizard (installs the VC++ runtime automatically),
    **or** unzip `Schemata.dist.zip` and run `Schemata.exe` from anywhere.
 2. Click **Start Schemata**. Your browser opens at `http://127.0.0.1:8750`.
 3. First run seeds the demo catalog automatically.
@@ -88,6 +89,31 @@ Live distributor data requires keys. Without them the app runs fully offline on 
 2. Copy the **Client ID** and **Client Secret** (OAuth2 client_credentials). Free "Evaluation" plan includes 100 matched parts/month; no datasheets/lifecycle data on free tier.
 3. Result: `NEXAR_CLIENT_ID` + `NEXAR_CLIENT_SECRET`.
 
+**Arrow Electronics API**
+1. Register at <https://developers.arrow.com> and request an **API Key**.
+2. Result: `ARROW_API_KEY`. An optional `ARROW_LOGIN` (account e-mail) can be added for personalised quotes.
+3. Arrow is available but **not enabled by default** — tick it under *Settings → Providers* after adding the key.
+
+**Farnell / element14 API**
+1. Register at <https://partner.element14.com> and create a **Product Search API** key.
+2. Result: `FARNELL_API_KEY`. Optionally set `FARNELL_STORE` to your element14 store (e.g. `uk.farnell.com`, `in.element14.com`, `sg.element14.com`).
+3. Farnell is available but **not enabled by default** — tick it under *Settings → Providers* after adding the key.
+
+**LCSC Electronics API**
+1. Create an account at <https://www.lcsc.com>, then apply for the open API under *Account → Open API*.
+2. Result: `LCSC_API_KEY` + `LCSC_API_SECRET`.
+3. Public endpoints work without a key (rate-limited and unofficial), so LCSC is fully usable even before adding keys.
+
+**TrustedParts API**
+1. Register at <https://www.trustedparts.com> (aggregation of **authorised** distributor stock — most useful for scarce/obsolete parts).
+2. Result: `TRUSTEDPARTS_API_KEY`.
+
+### 💡 How live sourcing works
+
+- A provider is queried only when it is **selected** in *Settings → Providers* **and** has its required keys configured (or has no key requirement, like LCSC's public endpoints and the offline catalogue).
+- On every analysis Schemata fans out to each enabled provider, merges the snapshots and applies a weighted risk score. If nothing is configured, it falls back to the bundled **demo catalog** automatically — the app is always usable.
+- The Settings page shows live credential status (present / from `.env` / missing) and a **Test connection** probe for each configured source.
+
 ### 📍 Where to put the keys
 
 | Run mode | Location | How |
@@ -113,6 +139,13 @@ DIGIKEY_CLIENT_ID=         # https://developer.digikey.com
 DIGIKEY_CLIENT_SECRET=
 NEXAR_CLIENT_ID=           # https://identity.nexar.com
 NEXAR_CLIENT_SECRET=
+ARROW_API_KEY=             # https://developers.arrow.com
+# ARROW_LOGIN=             # optional account e-mail for personalised quotes
+FARNELL_API_KEY=           # https://partner.element14.com
+# FARNELL_STORE=           # e.g. uk.farnell.com
+LCSC_API_KEY=              # https://www.lcsc.com -> Account -> Open API
+LCSC_API_SECRET=
+TRUSTEDPARTS_API_KEY=      # https://www.trustedparts.com
 ```
 
 > Missing keys fall back to the seeded demo catalog automatically — the app is fully
@@ -125,7 +158,7 @@ NEXAR_CLIENT_SECRET=
 | `[defaults]` | `region`, `currency`, `site`, `language` | Localisation defaults |
 | `[cache]` | `component_ttl_hours`, `snapshot_ttl_minutes`, `lifecycle_min_interval_hours` | Fact freshness windows |
 | `[orchestrator]` | `timeout_seconds`, `max_retries`, `concurrency` | Live-source fan-out |
-| `[rate_limits]` | `mouser_per_minute`, `digikey_per_minute`, `nexar_per_minute` | Outbound throttle per source |
+| `[rate_limits]` | `mouser_per_minute`, `digikey_per_minute`, `nexar_per_minute` | Outbound throttle per source (per-provider default rates for Arrow/Farnell/LCSC/TrustedParts are applied automatically) |
 | `[api]` | `requests_per_minute`, `probe_mpn`, `probe_manufacturer` | Inbound rate limit & probe part |
 | `[risk]` | `weight_*` | Risk-score weighting |
 
@@ -144,7 +177,7 @@ NEXAR_CLIENT_SECRET=
 # 1) Standalone exe  -> dist\Schemata.dist\Schemata.exe
 powershell -NoProfile -ExecutionPolicy Bypass -File packaging\build_nuitka.ps1
 
-# 2) Inno Setup installer -> dist\installer\Setup_Schemata_v2.0.0.exe
+# 2) Inno Setup installer -> dist\installer\Setup_Schemata_v2.2.0.exe
 & "C:\Users\<you>\AppData\Local\Programs\Inno Setup 6\ISCC.exe" packaging\Schemata-setup.iss
 ```
 
@@ -171,8 +204,8 @@ All `/api/*` endpoints are rate-limited (`[api] requests_per_minute`, default 60
 ## 🗂️ Project layout
 
 ```
-app/            Backend: config, models, sources (mouser/digikey/nexar/mock),
-                orchestrator, service, BOM engine, reports, FastAPI app
+app/            Backend: config, models, sources (mouser/digikey/nexar/arrow/farnell/
+                lcsc/trustedparts/mock), orchestrator, service, BOM engine, reports, FastAPI app
 ui/             Jinja2 templates, CSS and vanilla JS
 packaging/      launcher.py (Tk start window), Nuitka build, Inno Setup .iss
 tests/          pytest suite (unit + API integration)
@@ -187,7 +220,7 @@ config.toml     Runtime tunables
 Built and maintained by **Kishan J.**
 - GitHub: [KSHNKMRJHA](https://github.com/KSHNKMRJHA)
 
-Powered by **Mouser API Hub**, **DigiKey Product Information API** and **Nexar (Octopart) GraphQL** data where configured.
+Powered by **Mouser API Hub**, **DigiKey Product Information API**, **Nexar (Octopart) GraphQL**, **Arrow Electronics**, **Farnell / element14**, **LCSC Electronics** and **TrustedParts** data where configured.
 
 ---
 

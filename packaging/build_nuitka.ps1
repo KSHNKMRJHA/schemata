@@ -17,11 +17,11 @@ if (Test-Path "$root\dist\Schemata.build") { Remove-Item "$root\dist\Schemata.bu
   "--windows-icon-from-ico=$root\packaging\icon.ico" `
   --windows-product-name=Schemata `
   "--windows-company-name=Kishan J." `
-  --windows-product-version=2.0.0 `
-  --windows-file-version=2.0.0.0 `
+  --windows-product-version=2.2.0 `
+  --windows-file-version=2.2.0.0 `
   "--windows-file-description=Schemata - Component Intelligence Platform" `
   --product-name=Schemata `
-  --product-version=2.0.0 `
+  --product-version=2.2.0 `
   --output-filename=Schemata.exe `
   --mingw64 `
   --lto=yes `

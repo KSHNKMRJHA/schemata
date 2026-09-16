@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "part-intelligence"
-version = "2.0.0"
+version = "2.2.0"
 description = "Local Electronic Component Intelligence Platform - lifecycle, availability, pricing, alternatives and BOM risk intelligence"
 requires-python = ">=3.11"
 dependencies = [

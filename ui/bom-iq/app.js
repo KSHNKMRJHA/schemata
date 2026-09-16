@@ -1988,6 +1988,7 @@ async function uploadFile(file) {
     }
     show('mapping');
     renderMapping();
+    renderStatusStrip();
   } catch (err) {
     toast(err.message, 'error', 9000);
     show('start');
@@ -2095,6 +2096,7 @@ function loadAnalysis(analysis, analysisId) {
   $('#filechip').hidden = false;
   $('#filename').textContent = analysis.bom.name || analysis.bom.source_file || 'BOM';
   syncTopControls();
+  renderStatusStrip();
 
   const errors = (analysis.results || []).reduce((sum, r) =>
     sum + (r.issues || []).concat(r.line.issues || [])
@@ -2144,6 +2146,39 @@ function syncTopControls() {
   $('#currency').innerHTML = currencies.map(c =>
     `<option value="${esc(c)}" ${c === S.settings.currency ? 'selected' : ''}>${
       esc(c)}</option>`).join('');
+  renderStatusStrip();
+}
+
+function renderStatusStrip() {
+  const dot = $('#ss-dot');
+  if (!dot) return;
+  const active = (S.providers || []).filter(p => p.active);
+  const live = active.filter(p => p.id !== 'mock');
+  dot.className = 'dot ' + (live.length ? 'live' : 'demo');
+  $('#ss-source').textContent = live.length
+    ? `${live.length} live source${live.length === 1 ? '' : 's'}`
+    : 'offline catalogue';
+
+  let fileText = 'No BOM loaded';
+  if (S.analysis && S.analysis.bom) {
+    fileText = S.analysis.bom.name || S.analysis.bom.source_file || 'BOM';
+  } else if (S.upload && S.upload.filename) {
+    fileText = S.upload.filename;
+  }
+  $('#ss-file').textContent = fileText;
+  $('#ss-file').title = fileText;
+
+  const meta = [];
+  if (S.analysis && S.analysis.health) {
+    meta.push(`health ${num(S.analysis.health.score)}/100`);
+  }
+  if (S.settings && S.settings.build_quantity) {
+    meta.push(`build ${num(S.settings.build_quantity)}`);
+  }
+  if (S.settings && S.settings.currency) meta.push(S.settings.currency);
+  const version = S.boot && S.boot.app && S.boot.app.version;
+  if (version) meta.push('v' + version);
+  $('#ss-meta').textContent = meta.join('  ·  ');
 }
 
 function renderProviderChips() {
@@ -2156,6 +2191,7 @@ function renderProviderChips() {
         esc(p.name.split(' ')[0])}</span>`).join(' ');
   const chip = $('#chip-offline');
   if (chip) chip.addEventListener('click', () => openSettings('providers'));
+  renderStatusStrip();
 }
 
 /* ------------------------------------------------------------------ 8. boot */
@@ -2211,6 +2247,7 @@ function wireGlobal() {
     closeDrawer();
     show('start');
     renderStart();
+    renderStatusStrip();
   });
   $('#btn-reanalyse').addEventListener('click', reanalyse);
   $('#btn-theme').addEventListener('click', () => {

@@ -1,12 +1,13 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark light">
-<title>Schemata — Component Intelligence &amp; BOM Analyzer</title>
+<meta name="color-scheme" content="light dark">
+<title>Schemata — Component Intelligence &amp; Dashboard</title>
 <link rel="stylesheet" href="/bom-iq/styles.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%233987e5'/><text x='16' y='22' font-family='system-ui' font-size='15' font-weight='800' fill='white' text-anchor='middle'>S</text></svg>">
+<script>try{var _t=localStorage.getItem('bomiq.theme');if(_t)document.documentElement.dataset.theme=_t;}catch(e){}</script>
 </head>
 <body>
 
@@ -45,6 +46,16 @@
     <button class="btn" id="btn-export" disabled>Export ▾</button>
     <a class="btn" href="/parts" title="Part library — classic part search">Part library</a>
   </header>
+
+  <!-- ===================== status strip ===================== -->
+  <div class="statusstrip" id="statusstrip" role="status" aria-live="polite">
+    <span class="dot" id="ss-dot"></span>
+    <span id="ss-source">—</span>
+    <span class="ss-sep"></span>
+    <span id="ss-file">No BOM loaded</span>
+    <span class="spacer"></span>
+    <span id="ss-meta"></span>
+  </div>
 
   <!-- ===================== tabs ===================== -->
   <nav class="tabs" id="tabs" role="tablist" hidden>

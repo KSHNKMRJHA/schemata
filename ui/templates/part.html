@@ -59,7 +59,7 @@
           <tr>
             <td class="tag">{{ s.distributor }}</td>
             <td class="mono">{{ s.available_qty if s.available_qty is not none else "—" }}</td>
-            <td class="mono">{% for b in s.price_breaks %}{{ b.qty }} @ {{ "%.2f"|format(b.price) }}{% if not loop.last %} · {% endif %}{% endfor %}</td>
+            <td class="mono">{% if s.price_breaks %}<span class="muted">{{ s.currency or "USD" }}</span> {% endif %}{% for b in s.price_breaks %}{{ b.qty }} @ {{ "%.2f"|format(b.price) }}{% if not loop.last %} · {% endif %}{% endfor %}</td>
             <td>{{ s.lead_time or "—" }}</td>
             <td class="muted">{{ s.checked_at|datetime }}</td>
           </tr>

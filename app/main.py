@@ -43,7 +43,7 @@ async def _lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="Schemata", version="2.0.0", lifespan=_lifespan)
+app = FastAPI(title="Schemata", version="2.2.0", lifespan=_lifespan)
 app.mount("/static", StaticFiles(directory=str(UI_DIR / "static")), name="static")
 
 # BOM analysis engine API + eligible single-page app (Schemata).
