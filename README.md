@@ -44,7 +44,7 @@ A **local, privacy-first component intelligence platform** for electronics engin
 
 Use the installer from the **Releases** page, or unzip the portable build:
 
-1. Run `Setup_Schemata_v2.3.0.exe` and follow the wizard (installs the VC++ runtime automatically),
+1. Run `Setup_Schemata_v2.4.0.exe` and follow the wizard (installs the VC++ runtime automatically),
    **or** unzip `Schemata.dist.zip` and run `Schemata.exe` from anywhere.
 2. Click **Start Schemata**. Your browser opens at `http://127.0.0.1:8750`.
 3. First run seeds the demo catalog automatically.
@@ -207,7 +207,7 @@ The repo ships a `render.yaml` — fork the repo, connect it in the Render dashb
 # 1) Standalone exe  -> dist\Schemata.dist\Schemata.exe
 powershell -NoProfile -ExecutionPolicy Bypass -File packaging\build_nuitka.ps1
 
-# 2) Inno Setup installer -> dist\installer\Setup_Schemata_v2.3.0.exe
+# 2) Inno Setup installer -> dist\installer\Setup_Schemata_v2.4.0.exe
 & "C:\Users\<you>\AppData\Local\Programs\Inno Setup 6\ISCC.exe" packaging\Schemata-setup.iss
 ```
 
@@ -313,6 +313,16 @@ Powered by **Mouser API Hub**, **DigiKey Product Information API**, **Nexar (Oct
 
 - **Issues & feature requests:** open a [GitHub issue](../../issues)
 - **Questions / feedback:** [KSHNKMRJHA](https://github.com/KSHNKMRJHA)
+
+---
+
+## 📋 Changelog
+
+### v2.4.0
+- **BYOK (Bring Your Own Key)** — bring your own API keys and manage them via the Settings page
+- **Per-request ephemeral provider credentials** — credentials can now be passed per request without persisting
+- **Browser localStorage mode** — store settings directly in the browser for zero-server setups
+- **Token-gate optional public mode** — run the platform publicly without requiring access tokens
 
 ---
 

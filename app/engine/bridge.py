@@ -154,6 +154,7 @@ def run_analysis_job(
     source_bytes: bytes | None = None,
     label: str = "upload",
     provider_ids: list[str] | None = None,
+    credentials: dict[str, dict[str, str]] | None = None,
 ) -> None:
     """Blocking analysis worker — runs in a background thread."""
     engine = get_engine()
@@ -165,6 +166,7 @@ def run_analysis_job(
                 ingest_result.bom,
                 progress=progress,
                 provider_ids=provider_ids,
+                credentials=credentials,
             )
         elif source_bytes is not None:
             analysis = engine.analyse_bytes(
@@ -172,6 +174,7 @@ def run_analysis_job(
                 name=label,
                 progress=progress,
                 provider_ids=provider_ids,
+                credentials=credentials,
             )
         else:
             raise BomIQError("No data to analyse")

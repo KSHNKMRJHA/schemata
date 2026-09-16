@@ -135,10 +135,12 @@ class Engine:
     def close(self) -> None:
         self.db.close()
 
-    def registry(self, provider_ids: Sequence[str] | None = None
+    def registry(self, provider_ids: Sequence[str] | None = None,
+                 credentials: dict[str, dict[str, str]] | None = None
                  ) -> ProviderRegistry:
         return ProviderRegistry(self.config, part_cache=self.part_cache,
-                                http=self.http, provider_ids=provider_ids)
+                                http=self.http, provider_ids=provider_ids,
+                                credential_overrides=credentials)
 
     # -- ingestion only --------------------------------------------------- #
 
@@ -160,6 +162,7 @@ class Engine:
                      progress: ProgressFn | None = None,
                      cancel: CancelToken | None = None,
                      provider_ids: Sequence[str] | None = None,
+                     credentials: dict[str, dict[str, str]] | None = None,
                      **ingest_options: Any) -> BomAnalysis:
         started = time.monotonic()
         emit = _emitter(progress, started)
@@ -167,12 +170,14 @@ class Engine:
         result = self.ingest(path, **ingest_options)
         emit("ingest", f"Read {result.bom.line_count} lines.", 1, 1)
         return self.analyse_bom(result.bom, progress=progress, cancel=cancel,
-                                provider_ids=provider_ids, started=started)
+                                provider_ids=provider_ids, started=started,
+                                credentials=credentials)
 
     def analyse_bytes(self, raw: bytes, name: str = "upload", *,
                       progress: ProgressFn | None = None,
                       cancel: CancelToken | None = None,
                       provider_ids: Sequence[str] | None = None,
+                      credentials: dict[str, dict[str, str]] | None = None,
                       **ingest_options: Any) -> BomAnalysis:
         started = time.monotonic()
         emit = _emitter(progress, started)
@@ -180,11 +185,13 @@ class Engine:
         result = self.ingest_bytes(raw, name=name, **ingest_options)
         emit("ingest", f"Read {result.bom.line_count} lines.", 1, 1)
         return self.analyse_bom(result.bom, progress=progress, cancel=cancel,
-                                provider_ids=provider_ids, started=started)
+                                provider_ids=provider_ids, started=started,
+                                credentials=credentials)
 
     def analyse_bom(self, bom: Bom, *, progress: ProgressFn | None = None,
                     cancel: CancelToken | None = None,
                     provider_ids: Sequence[str] | None = None,
+                    credentials: dict[str, dict[str, str]] | None = None,
                     started: float | None = None) -> BomAnalysis:
         """Analyse an already-ingested BOM."""
         started = started or time.monotonic()
@@ -203,7 +210,7 @@ class Engine:
         analysis.started_at = _utc_now()
         analysis.issues.extend(bom.issues)
 
-        registry = self.registry(provider_ids)
+        registry = self.registry(provider_ids, credentials=credentials)
         analysis.providers_used = registry.ids
         analysis.offline = registry.is_offline
         if registry.setup_errors:

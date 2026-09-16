@@ -84,8 +84,16 @@ class ProviderRegistry:
 
     def __init__(self, config: Config, part_cache: Any | None = None,
                  http: HttpClient | None = None,
-                 provider_ids: Sequence[str] | None = None) -> None:
+                 provider_ids: Sequence[str] | None = None,
+                 credential_overrides: dict[str, dict[str, str]] | None = None
+                 ) -> None:
+        # Swap in a per-request credential store when the caller brought its
+        # own keys (bring-your-own-key). The shared config stays untouched, so
+        # concurrent requests with different keys never interfere.
         self.config = config
+        if credential_overrides:
+            self.config = config.with_credential_overrides(
+                credential_overrides)
         self.part_cache = part_cache
         self.http = http or HttpClient(
             rate_per_second=4.0,

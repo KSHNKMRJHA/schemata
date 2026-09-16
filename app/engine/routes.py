@@ -6,6 +6,9 @@ so this router is mounted WITHOUT a prefix on the FastAPI app.
 
 from __future__ import annotations
 
+import base64
+import json
+import os
 import re
 import threading
 import time
@@ -42,6 +45,70 @@ MAX_UPLOADS = 20
 _uploads: dict[str, dict[str, Any]] = {}
 _analyses: dict[str, dict[str, Any]] = {}
 _started_at = time.time()
+
+
+# ---------------------------------------------------------------------------
+# Bring-your-own-key: per-request ephemeral provider credentials
+# ---------------------------------------------------------------------------
+# Public deployments hold no API keys on the server. Callers that own keys can
+# send them for a single request via the ``X-Schemata-Keys`` header (base64url
+# JSON ``{provider: {field: value}}``) and/or a ``credentials`` object in the
+# JSON body. The engine consults them for that request only, then they are
+# dropped — nothing is written to disk, keyring, logs or reports.
+
+_BYOK_HEADER = "x-schemata-keys"
+_MAX_BYOK_BYTES = 20000
+
+
+def _byok_from_value(payload: Any) -> dict[str, dict[str, str]]:
+    """Whitelist caller-supplied keys down to known providers and fields."""
+    if not isinstance(payload, dict):
+        raise HTTPException(
+            400, "'credentials' must be an object mapping provider -> "
+                 "{field: value}.")
+    out: dict[str, dict[str, str]] = {}
+    size = 0
+    for provider_id, fields in payload.items():
+        spec = PROVIDER_SPECS.get(str(provider_id))
+        if spec is None:
+            continue
+        allowed = {c.key for c in spec.credentials}
+        fields = fields if isinstance(fields, dict) else {}
+        cleaned = {
+            key: clean(value)
+            for key, value in fields.items()
+            if key in allowed and isinstance(value, str) and clean(value)
+        }
+        if not cleaned:
+            continue
+        size += sum(len(value) for value in cleaned.values())
+        if size > _MAX_BYOK_BYTES:
+            raise HTTPException(400, "Bring-your-own-key payload too large.")
+        out[str(provider_id)] = cleaned
+    return out
+
+
+def _decode_byok_header(raw: str) -> dict[str, dict[str, str]]:
+    try:
+        padded = raw + "=" * (-len(raw) % 4)
+        payload = json.loads(
+            base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8"))
+    except Exception as exc:
+        raise HTTPException(400, "Invalid X-Schemata-Keys header.") from exc
+    return _byok_from_value(payload)
+
+
+def _byok_keys(request: Request, payload: Any = None
+               ) -> dict[str, dict[str, str]] | None:
+    """Ephemeral provider keys for this request (body then header, per-field)."""
+    merged: dict[str, dict[str, str]] = {}
+    if isinstance(payload, dict) and payload.get("credentials") is not None:
+        merged.update(_byok_from_value(payload["credentials"]))
+    raw = request.headers.get(_BYOK_HEADER)
+    if raw:
+        for provider_id, fields in _decode_byok_header(raw).items():
+            merged.setdefault(provider_id, {}).update(fields)
+    return merged or None
 
 
 def _safe_stem(name: str) -> str:
@@ -117,7 +184,11 @@ async def bootstrap():
     engine = bridge.get_engine()
     from app.engine.bomiq.export import flat as _flat
     return {
-        "app": {"name": APP_TITLE, "version": __version__},
+        "app": {
+            "name": APP_TITLE, "version": __version__,
+            "public": not bool(os.environ.get(
+                "SCHEMATA_ACCESS_TOKEN", "").strip()),
+        },
         "settings": engine.config.settings.to_dict(),
         "providers": engine.config.describe_providers(),
         "provider_specs": {
@@ -220,7 +291,10 @@ async def test_providers(request: Request):
     engine = bridge.get_engine()
     payload = await request.json()
     ids = payload.get("providers")
-    registry = engine.registry(ids if isinstance(ids, list) else None)
+    registry = engine.registry(
+        ids if isinstance(ids, list) else None,
+        credentials=_byok_keys(request, payload),
+    )
     return {"results": registry.self_test()}
 
 
@@ -359,11 +433,14 @@ async def analyse(request: Request):
     else:
         raise HTTPException(400, "Provide either 'upload_id' or 'path'.")
 
+    credentials = _byok_keys(request, payload)
+
     job_id = bridge.create_job(label, meta={"filename": label, "upload_id": upload_id or None})
 
     thread = threading.Thread(
         target=bridge.run_analysis_job,
-        args=(job_id, ingest_result, source_bytes, label, provider_ids),
+        args=(job_id, ingest_result, source_bytes, label, provider_ids,
+              credentials),
         name=f"schemata-bom-{job_id}",
         daemon=True,
     )
@@ -503,11 +580,12 @@ async def delete_project(project_id: str):
 # ======================================================================== #
 
 @router.get("/api/part")
-async def get_part(mpn: str = Query(""), manufacturer: str = Query("")):
+async def get_part(request: Request, mpn: str = Query(""),
+                   manufacturer: str = Query("")):
     if not mpn:
         raise HTTPException(400, "Provide an 'mpn' parameter.")
     engine = bridge.get_engine()
-    registry = engine.registry()
+    registry = engine.registry(credentials=_byok_keys(request))
     result = registry.lookup(mpn, manufacturer)
     return {
         "query": {"mpn": mpn, "manufacturer": manufacturer},
@@ -528,7 +606,7 @@ async def search_parts(request: Request):
     except (TypeError, ValueError):
         limit = 12
     engine = bridge.get_engine()
-    registry = engine.registry()
+    registry = engine.registry(credentials=_byok_keys(request, payload))
     parts = registry.search(query, limit=limit)
     return {
         "query": query,
@@ -545,7 +623,7 @@ async def find_alternates(request: Request):
     if not mpn:
         raise HTTPException(400, "Provide an 'mpn'.")
     engine = bridge.get_engine()
-    registry = engine.registry()
+    registry = engine.registry(credentials=_byok_keys(request, payload))
     lookup = registry.lookup(mpn, clean(payload.get("manufacturer")))
     if lookup.part is None:
         return {"mpn": mpn, "found": False, "alternates": []}

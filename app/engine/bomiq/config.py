@@ -23,9 +23,10 @@ import platform
 import re
 import stat
 import sys
+from collections.abc import Iterable
 from dataclasses import dataclass, field, fields
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .util import log
 from .util.text import clean
@@ -288,11 +289,19 @@ class Credentials:
     """Reads and writes provider credentials without ever logging them."""
 
     def __init__(self, config_dir: Path | None = None,
-                 use_keyring: bool = True) -> None:
+                 use_keyring: bool = True,
+                 overrides: dict[str, dict[str, str]] | None = None) -> None:
         self.config_dir = Path(config_dir or user_config_dir())
         self.file = self.config_dir / "credentials.json"
         self.use_keyring = use_keyring and _HAVE_KEYRING
         self._file_cache: dict[str, dict[str, str]] | None = None
+        #: ephemeral per-request keys (bring-your-own-key). Consulted before
+        #: the environment, keyring and file; never persisted or logged.
+        self._overrides: dict[str, dict[str, str]] = {
+            str(provider): {str(k): str(v) for k, v in values.items()}
+            for provider, values in (overrides or {}).items()
+            if isinstance(values, dict)
+        }
 
     # -- file backend ----------------------------------------------------- #
 
@@ -327,7 +336,28 @@ class Credentials:
 
     # -- public API ------------------------------------------------------- #
 
+    def with_overrides(self, overrides: dict[str, dict[str, str]] | None
+                       ) -> Credentials:
+        """Shared-backend copy that consults ephemeral keys for one request.
+
+        Bring-your-own-key: keys reach the engine from the caller and are
+        dropped with the copy. They are never written to disk or the keyring,
+        so nothing secret survives the request.
+        """
+        clone = Credentials(self.config_dir, use_keyring=self.use_keyring)
+        clone._file_cache = self._file_cache
+        clone._overrides = {
+            str(provider): {str(k): str(v) for k, v in values.items()
+                            if clean(v)}
+            for provider, values in (overrides or {}).items()
+            if isinstance(values, dict)
+        }
+        return clone
+
     def get(self, provider: str, key: str) -> str:
+        override = clean(self._overrides.get(provider, {}).get(key))
+        if override:
+            return override
         spec = PROVIDER_SPECS.get(provider)
         if spec:
             for credential in spec.credentials:
@@ -350,6 +380,7 @@ class Credentials:
         spec = PROVIDER_SPECS.get(provider)
         keys = [c.key for c in spec.credentials] if spec else []
         keys += [k for k in self._read_file().get(provider, {}) if k not in keys]
+        keys += [k for k in self._overrides.get(provider, {}) if k not in keys]
         return {key: self.get(provider, key) for key in keys}
 
     def set(self, provider: str, values: dict[str, str]) -> None:
@@ -666,6 +697,20 @@ class Config:
             LOG.error("Could not save settings: %s", exc)
 
     # -- provider helpers ------------------------------------------------- #
+
+    def with_credential_overrides(
+            self, overrides: dict[str, dict[str, str]] | None) -> Config:
+        """Per-request copy whose credentials consult ephemeral keys first.
+
+        Used for bring-your-own-key requests: only the credential store is
+        swapped; settings, paths and the database handle are shared read-only.
+        The caller's keys live only inside :class:`Credentials` for the
+        lifetime of the request and are never written anywhere.
+        """
+        clone = Config.__new__(Config)
+        clone.__dict__.update(self.__dict__)
+        clone.credentials = self.credentials.with_overrides(overrides)
+        return clone
 
     def enabled_providers(self) -> list[str]:
         """Providers that are both selected and usable right now."""

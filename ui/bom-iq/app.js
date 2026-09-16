@@ -34,6 +34,46 @@ const S = {
   filters: {},
 };
 
+/* ------------------------------------------------------- BYOK (browser keys) */
+/* BYOK = Bring-Your-Own-Key. On public deployments with no server-side API
+   keys, callers supply their own provider credentials. In "browser" mode
+   these live in this device's localStorage and are sent as the
+   X-Schemata-Keys header on every request. In "server" mode the existing
+   credentials API saves them on the local machine. Header format is
+   base64url-encoded JSON mapping provider IDs to {field: value} objects. */
+
+const _BYOK_STORAGE = 'schemata.byok.keys';
+const _BYOK_MODE    = 'schemata.byok.mode';
+
+function _byokLoad() {
+  try { return JSON.parse(localStorage.getItem(_BYOK_STORAGE)) || {}; }
+  catch (_) { return {}; }
+}
+function _byokSave(obj) {
+  try { localStorage.setItem(_BYOK_STORAGE, JSON.stringify(obj)); } catch (_) {}
+}
+function _byokHeader(obj) {
+  if (!obj || !Object.keys(obj).length) return null;
+  try {
+    const s = JSON.stringify(obj);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  } catch (_) { return null; }
+}
+function _byokMode() {
+  let v;
+  try { v = localStorage.getItem(_BYOK_MODE); } catch (_) {}
+  if (v === 'server' || v === 'browser') return v;
+  const host = location.hostname;
+  return (host && host !== 'localhost' && host !== '127.0.0.1') ? 'browser' : 'server';
+}
+function _byokSetMode(mode) {
+  try { localStorage.setItem(_BYOK_MODE, mode); } catch (_) {}
+}
+function _byokHasKeys(id) {
+  const all = _byokLoad();
+  return !!(all[id] && Object.keys(all[id]).length);
+}
+
 async function api(path, options = {}) {
   const opts = Object.assign({ headers: {} }, options);
   opts.headers = Object.assign({ 'X-BOMIQ-Token': S.token }, opts.headers);
@@ -42,6 +82,10 @@ async function api(path, options = {}) {
     opts.headers['Content-Type'] = 'application/json';
     opts.method = opts.method || 'POST';
     delete opts.json;
+  }
+  if (_byokMode() === 'browser') {
+    const header = _byokHeader(_byokLoad());
+    if (header) opts.headers['X-Schemata-Keys'] = header;
   }
   let response;
   try {
@@ -1742,13 +1786,30 @@ function settingField(key, label, type, hint) {
 function renderSettings() {
   const specs = (S.boot && S.boot.provider_specs) || {};
   $('#pane-providers').innerHTML = `
-<p class="sub">
-  Credentials are stored in your operating system keyring when one is
-  available, otherwise in a file readable only by you. They are never written
-  to logs or reports.
-</p>
+<div style="display:flex;gap:8px;margin-bottom:14px;align-items:center;flex-wrap:wrap">
+  <span class="muted" style="font-size:12px;text-transform:uppercase;
+    letter-spacing:.05em">Key storage:</span>
+  <div style="display:flex;border:1px solid var(--border);border-radius:6px;
+    overflow:hidden;font-size:12px">
+    <button class="btn sm${_byokMode() === 'browser' ? ' selected' : ''}"
+      data-mode-toggle="browser">This device (browser)</button>
+    <button class="btn sm${_byokMode() === 'server' ? ' selected' : ''}"
+      data-mode-toggle="server">Local install (server)</button>
+  </div>
+</div>
+<p class="sub">${
+  _byokMode() === 'browser'
+    ? 'Keys are stored in this browser only and sent with each request. ' +
+      'They are never written to the server\u2019s disk, logs or reports.'
+    : 'Keys are stored on the local machine (OS keyring or file). ' +
+      'This mode is available only on desktop installations.'
+}</p>
 ${(S.providers || []).map(p => {
   const spec = specs[p.id] || {};
+  const mode = _byokMode();
+  const hasBrowser = mode === 'browser' && _byokHasKeys(p.id);
+  const hasServer  = mode === 'server' && p.configured;
+  const hasKey     = mode === 'browser' ? hasBrowser : hasServer;
   return `
 <div class="provcard">
   <div class="top">
@@ -1757,33 +1818,37 @@ ${(S.providers || []).map(p => {
         ${p.selected ? 'checked' : ''}>
       <span><b>${esc(p.name)}</b></span>
     </label>
-    ${p.configured ? pill('configured', 'good')
+    ${hasKey ? pill(mode === 'browser' ? 'browser key' : 'configured', 'good')
       : (spec.credentials || []).some(c => c.required)
         ? pill('no key', 'warning') : pill('no key needed', 'neutral')}
     ${p.active ? pill('active', 'info') : ''}
     <div class="spacer" style="flex:1"></div>
     ${p.signup_url ? `<a href="${esc(p.signup_url)}" target="_blank"
-      rel="noopener" style="font-size:12px">Get a key ↗</a>` : ''}
+      rel="noopener" style="font-size:12px">Get a key \u2197</a>` : ''}
     ${p.docs_url ? `<a href="${esc(p.docs_url)}" target="_blank"
-      rel="noopener" style="font-size:12px">API docs ↗</a>` : ''}
+      rel="noopener" style="font-size:12px">API docs \u2197</a>` : ''}
   </div>
   ${p.notes ? `<div class="notes">${esc(p.notes)}</div>` : ''}
-  ${(p.fields || []).length ? `<div class="creds">${p.fields.map(f => `
+  ${(p.fields || []).length ? `<div class="creds">${p.fields.map(f => {
+    const fromEnv = mode === 'server' && f.from_env;
+    return `
     <div class="field">
       <label>${esc(f.label)}${f.required ? ' *' : ''}</label>
       <input type="${f.secret ? 'password' : 'text'}"
         data-cred="${esc(p.id)}:${esc(f.key)}"
         placeholder="${esc(f.present ? f.masked : (f.help || ''))}"
-        autocomplete="off" ${f.from_env ? 'disabled' : ''}>
-      ${f.from_env ? `<span class="hint">Set by the environment variable
+        autocomplete="off" ${fromEnv ? 'disabled' : ''}>
+      ${fromEnv ? `<span class="hint">Set by the environment variable
         ${esc((f.env_names || [])[0] || '')}.</span>`
         : f.help ? `<span class="hint">${esc(f.help)}</span>` : ''}
-    </div>`).join('')}</div>` : ''}
+    </div>`;
+  }).join('')}</div>` : ''}
   <div class="actions">
-    <button class="btn sm" data-save-cred="${esc(p.id)}">Save key</button>
+    <button class="btn sm" data-save-cred="${esc(p.id)}"
+      data-mode="${esc(mode)}">${hasKey ? 'Update key' : 'Save key'}</button>
     <button class="btn sm" data-test="${esc(p.id)}">Test connection</button>
-    ${p.configured ? `<button class="btn sm danger"
-      data-clear-cred="${esc(p.id)}">Remove key</button>` : ''}
+    ${hasKey ? `<button class="btn sm danger"
+      data-clear-cred="${esc(p.id)}" data-mode="${esc(mode)}">Remove key</button>` : ''}
     <span class="muted" data-test-result="${esc(p.id)}"></span>
   </div>
 </div>`;
@@ -1841,58 +1906,89 @@ function wireSettings() {
         : list.filter(p => p !== id);
     });
   });
+
+  $$('[data-mode-toggle]', modal).forEach(button => {
+    button.addEventListener('click', () => {
+      _byokSetMode(button.dataset.modeToggle);
+      renderSettings();
+      renderProviderChips();
+    });
+  });
+
   $$('[data-save-cred]', modal).forEach(button => {
     button.addEventListener('click', async () => {
-      const id = button.dataset.saveCred;
+      const id   = button.dataset.saveCred;
+      const mode = button.dataset.mode;
       const credentials = {};
       $$(`[data-cred^="${id}:"]`, modal).forEach(input => {
         if (input.disabled) return;
         const key = input.dataset.cred.split(':')[1];
         if (input.value.trim()) credentials[key] = input.value.trim();
       });
-      if (!Object.keys(credentials).length) {
-        toast('Enter a value first.');
-        return;
-      }
-      try {
-        const data = await api(`/api/providers/${id}/credentials`,
-                               { json: { credentials, enable: true } });
-        S.providers = data.providers;
+      if (!Object.keys(credentials).length) { toast('Enter a value first.'); return; }
+      if (mode === 'browser') {
+        const all = _byokLoad();
+        all[id] = Object.assign(all[id] || {}, credentials);
+        _byokSave(all);
         S.settings.providers = Array.from(new Set(
           (S.settings.providers || []).concat([id])));
-        toast(`${id} credentials saved.`, 'success');
-        renderSettings();
-        renderProviderChips();
-      } catch (err) { toast(err.message, 'error'); }
-    });
-  });
-  $$('[data-clear-cred]', modal).forEach(button => {
-    button.addEventListener('click', async () => {
-      const id = button.dataset.clearCred;
-      await api(`/api/providers/${id}/credentials`, { method: 'DELETE' });
-      S.providers = await api('/api/providers');
-      toast(`${id} key removed.`);
+        toast(`${id} credentials saved to this device.`, 'success');
+      } else {
+        try {
+          const data = await api(`/api/providers/${id}/credentials`,
+                                 { json: { credentials, enable: true } });
+          S.providers = data.providers;
+          S.settings.providers = Array.from(new Set(
+            (S.settings.providers || []).concat([id])));
+          toast(`${id} credentials saved to local install.`, 'success');
+        } catch (err) { toast(err.message, 'error'); return; }
+      }
       renderSettings();
       renderProviderChips();
     });
   });
+
+  $$('[data-clear-cred]', modal).forEach(button => {
+    button.addEventListener('click', async () => {
+      const id   = button.dataset.clearCred;
+      const mode = button.dataset.mode;
+      if (mode === 'browser') {
+        const all = _byokLoad();
+        delete all[id];
+        _byokSave(all);
+        toast(`${id} key removed from this device.`);
+      } else {
+        await api(`/api/providers/${id}/credentials`, { method: 'DELETE' });
+        S.providers = await api('/api/providers');
+        toast(`${id} key removed from local install.`);
+      }
+      renderSettings();
+      renderProviderChips();
+    });
+  });
+
   $$('[data-test]', modal).forEach(button => {
     button.addEventListener('click', async () => {
-      const id = button.dataset.test;
+      const id  = button.dataset.test;
       const out = $(`[data-test-result="${id}"]`, modal);
-      out.innerHTML = '<span class="loading"></span> testing…';
+      out.innerHTML = '<span class="loading"></span> testing\u2026';
       try {
-        const data = await api('/api/providers/test', { json: { providers: [id] } });
+        const payload = { providers: [id] };
+        if (_byokMode() === 'browser' && _byokHasKeys(id)) {
+          payload.credentials = _byokLoad()[id] || {};
+        }
+        const data = await api('/api/providers/test', { json: payload });
         const result = (data.results || []).find(r => r.provider === id) || {};
         out.innerHTML = result.ok
-          ? `${pill('ok', 'good')} ${esc(result.message || '')}
-             ${result.latency_ms ? `(${num(result.latency_ms)} ms)` : ''}`
+          ? `${pill('ok', 'good')} ${esc(result.message || '')} ${
+              result.latency_ms ? `(${num(result.latency_ms)} ms)` : ''}`
           : `${pill('failed', 'critical')} ${esc(result.message || '')}`;
       } catch (err) {
         out.innerHTML = `${pill('failed', 'critical')} ${esc(err.message)}`;
       }
     });
   });
+
   $$('[data-setting]', modal).forEach(input => {
     input.addEventListener('change', () => {
       const key = input.dataset.setting;
@@ -2184,11 +2280,16 @@ function renderStatusStrip() {
 function renderProviderChips() {
   const active = (S.providers || []).filter(p => p.active);
   const offline = active.length === 1 && active[0].id === 'mock';
-  $('#provider-chips').innerHTML = offline
+  const chips = offline
     ? `<button class="btn sm" id="chip-offline">${pill('offline', 'warning')}
        &nbsp;add a key</button>`
-    : active.map(p => `<span class="pill info" title="${esc(p.name)}">${
-        esc(p.name.split(' ')[0])}</span>`).join(' ');
+    : active.map(p => {
+        const byok = _byokMode() === 'browser' && _byokHasKeys(p.id);
+        return `<span class="pill info" title="${esc(p.name)}${
+          byok ? ' (browser keys)' : ''}">${esc(p.name.split(' ')[0])}${
+          byok ? ' <span style="font-size:10px;opacity:.7">BYOK</span>' : ''}</span>`;
+      }).join(' ');
+  $('#provider-chips').innerHTML = chips;
   const chip = $('#chip-offline');
   if (chip) chip.addEventListener('click', () => openSettings('providers'));
   renderStatusStrip();
