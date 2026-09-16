@@ -1,10 +1,10 @@
 # Schemata — Component Intelligence Platform
 
-A **local, privacy-first component intelligence platform** for electronics engineers and procurement. `Schemata` tracks a component's full lifecycle: search a part number, see its lifecycle status, distributor stock & pricing, engineering risk, and replacement candidates — then roll a whole **BOM** through a line-by-line procurement risk pipeline.
+A **local, privacy-first component intelligence platform** for electronics engineers and procurement. Search a part number, see its lifecycle status, distributor stock & pricing, engineering risk, and replacement candidates — then roll a whole **BOM** through a line-by-line procurement risk pipeline.
 
-> **Try it live** — <https://schemata-359w.onrender.com> (free tier, see [Live Web](#-live-web-schemata-on-render) below).
+> **Live on the web:** <https://schemata-359w.onrender.com> — open it, paste the access token on the login page, and you're in. Everything runs from the browser; no install needed.
 >
-> Runs 100% locally by default. The server binds to `127.0.0.1` only. Nothing leaves your machine except direct look-ups to Mouser / DigiKey / Nexar (Octopart) / Arrow / Farnell / LCSC / TrustedParts when you configure API keys. No telemetry, no accounts, no cloud.
+> **Runs locally too.** The server binds to `127.0.0.1` only. Nothing leaves your machine except direct look-ups to Mouser / DigiKey / Nexar / Arrow / Farnell / LCSC / TrustedParts when you configure API keys. No telemetry, no accounts, no cloud.
 
 ---
 
@@ -166,73 +166,15 @@ TRUSTEDPARTS_API_KEY=      # https://www.trustedparts.com
 
 ---
 
-## 🌍 Deploy online (free — Render)
+## 🌍 Live Web
 
-The repo ships a `render.yaml` Blueprint, so hosting on Render's free tier takes
-about two minutes.
+I deployed this on Render's free tier — it's live at **<https://schemata-359w.onrender.com>**.
 
-1. Push this repo to GitHub (it already lives at
-   <https://github.com/KSHNKMRJHA/schemata>).
-2. In the Render dashboard: **New + → Blueprint** → connect the `schemata` repo.
-3. Render builds, starts the server and returns a public URL
-   (`https://schemata-359w.onrender.com` unless you rename it).
+**To use it:** open the URL, paste the shared access token on the login page, and click **Access Schemata**. A session cookie is set for 7 days — the whole app (search, BOM IQ, part dossier, BOM upload) works normally after that.
 
-**First visit** — the deployment generates a random API token automatically
-(`SCHEMATA_ACCESS_TOKEN`, visible in the service's **Environment** tab). Open
-the URL in a browser — a **login page** appears. Paste the token and click
-**Access Schemata** to start. A session cookie is set for 7 days.
+Programmatic access (curl, API clients) also works via `?token=<TOKEN>` in the URL — raw `+`/`=` characters need no encoding.
 
-You can also authenticate by appending the token as a query parameter:
-
-```
-https://<your-app>.onrender.com/?token=<SCHEMATA_ACCESS_TOKEN>
-```
-
-This is useful for programmatic access (curl, API clients). The token accepts
-its raw form — `+` and `=` characters need no URL encoding.
-
-**Add live data keys** — in the same Environment tab, add the source keys you
-want (see [Live Web](#-live-web-schemata-on-render) for the full list), then
-**Manual Deploy**.
-
-**Free-tier caveats**
-- The instance **sleeps after ~15 min idle** — the first request after a nap
-  takes ~1 minute (cold start).
-- Storage is **ephemeral**: the SQLite database and cached reports live on the
-  instance's disk and reset on restart/redeploy. Source keys set as env vars
-  survive; long-term data persistence would use a managed Postgres/volume.
-
----
-
-## 🌐 Live Web — Schemata on Render
-
-A public instance runs on Render's free tier:
-
-**<https://schemata-359w.onrender.com>**
-
-### First visit
-
-1. Open the URL — you'll see a **login page**.
-2. Paste the shared access token (ask the deployer for it) and click **Access Schemata**.
-3. A session cookie is set for 7 days; the whole app (search, BOM IQ, part dossier) works normally.
-
-> Tokens with `+` or `=` characters (common in base64) paste directly into the form — no URL encoding needed.
-
-### What works on the live instance
-
-| Feature | Status |
-| --- | --- |
-| Part search (MPN lookup) | works — uses Offline Catalogue unless API keys are configured |
-| Part dossier (lifecycle, risk, alternatives) | works — same as above |
-| BOM upload & analysis (CSV / TXT / XLSX) | works |
-| BOM export (HTML / JSON / CSV) | works |
-| BOM IQ dashboard | works |
-| Provider settings (add/remove keys) | works — keys persist per session |
-| Demo catalog (zero-config) | always available as fallback |
-
-### Adding live distributor data on Render
-
-In the Render dashboard → **Environment** tab, add the keys you want:
+**Adding live distributor data:** in the Render dashboard → **Environment** tab, add the keys you want and click **Manual Deploy**:
 
 ```
 NEXAR_CLIENT_ID=             NEXAR_CLIENT_SECRET=
@@ -244,13 +186,11 @@ LCSC_API_KEY=                LCSC_API_SECRET=
 TRUSTEDPARTS_API_KEY=
 ```
 
-Then click **Manual Deploy**. The keys appear in *Settings → Providers* in the app.
+**Caveats:** free tier sleeps after ~15 min idle (cold start ~1 min). Storage is ephemeral — SQLite resets on restart; API keys survive as env vars. The `render.yaml` Blueprint handles the full build/start.
 
-### Free-tier caveats
+### Self-hosting on Render
 
-- **Sleeps after ~15 min idle** — first request after a nap takes ~1 min (cold start).
-- **Ephemeral storage** — SQLite database and cached reports reset on restart/redeploy.
-- API keys survive as env vars; long-term data persistence requires a managed Postgres or volume.
+The repo ships a `render.yaml` — fork the repo, connect it in the Render dashboard via **New + → Blueprint**, and it builds/starts automatically. You'll get your own `SCHEMATA_ACCESS_TOKEN` in the service's **Environment** tab.
 
 ---
 
