@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import os
+import secrets
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -50,6 +53,61 @@ app.mount("/static", StaticFiles(directory=str(UI_DIR / "static")), name="static
 app.include_router(bom_router)
 app.mount("/bom-iq", StaticFiles(directory=str(UI_DIR / "bom-iq"), html=True),
           name="bom-iq")
+
+_ACCESS_TOKEN_ENV = "SCHEMATA_ACCESS_TOKEN"
+_ACCESS_COOKIE = "schemata_access"
+
+
+def _access_token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+@app.middleware("http")
+async def _require_access_token(request, call_next):
+    """Gate every route when SCHEMATA_ACCESS_TOKEN is set (online deployments).
+
+    Local use (no env var) is unaffected. The first request must carry a valid
+    token via ``Authorization: Bearer <token>`` or ``?token=<token>``; a short
+    httponly cookie then authenticates the rest of the session so the single
+    page app and its relative API calls work naturally.
+    """
+    token = os.environ.get(_ACCESS_TOKEN_ENV, "").strip()
+    if not token:
+        return await call_next(request)
+    if request.url.path == "/healthz":
+        return await call_next(request)
+
+    digest = _access_token_hash(token)
+    supplied = request.headers.get("authorization", "")
+    if supplied[:7].lower() == "bearer ":
+        supplied = supplied[7:].strip()
+    else:
+        supplied = request.query_params.get("token", "").strip()
+    if supplied:
+        if secrets.compare_digest(supplied, token):
+            response = await call_next(request)
+            response.set_cookie(
+                _ACCESS_COOKIE, digest,
+                max_age=7 * 86400, httponly=True, samesite="strict",
+                secure=request.url.scheme == "https",
+            )
+            return response
+        response = JSONResponse(status_code=401, content={"detail": "unauthorized"})
+        response.delete_cookie(_ACCESS_COOKIE)
+        return response
+    if secrets.compare_digest(request.cookies.get(_ACCESS_COOKIE, ""), digest):
+        return await call_next(request)
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "unauthorized",
+                 "hint": "append ?token=<SCHEMATA_ACCESS_TOKEN> or send "
+                         "Authorization: Bearer <token>"},
+    )
+
+
+@app.get("/healthz", include_in_schema=False)
+def healthz():
+    return {"ok": True}
 
 _env = Environment(
     loader=FileSystemLoader(str(UI_DIR / "templates")),

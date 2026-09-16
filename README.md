@@ -164,6 +164,42 @@ TRUSTEDPARTS_API_KEY=      # https://www.trustedparts.com
 
 ---
 
+## 🌍 Deploy online (free — Render)
+
+The repo ships a `render.yaml` Blueprint, so hosting on Render's free tier takes
+about two minutes.
+
+1. Push this repo to GitHub (it already lives at
+   <https://github.com/KSHNKMRJHA/schemata>).
+2. In the Render dashboard: **New + → Blueprint** → connect the `schemata` repo.
+3. Render builds, starts the server and returns a public URL
+   (`https://schemata.onrender.com` unless you rename it).
+
+**First visit** — the deployment generates a random API token automatically
+(`SCHEMATA_ACCESS_TOKEN`, shown in the service's **Environment** tab). Open:
+
+```
+https://<your-app>.onrender.com/?token=<SCHEMATA_ACCESS_TOKEN>
+```
+
+The token briefly authenticates you and sets a session cookie; every later
+page/API call works normally. Without the token every route returns **401**.
+
+**Add live data keys** — in the same Environment tab, add the source keys you
+want (e.g. `MOUSER_API_KEY`, `DIGIKEY_CLIENT_ID` + `DIGIKEY_CLIENT_SECRET`,
+`NEXAR_CLIENT_ID` + `NEXAR_CLIENT_SECRET`, `ARROW_API_KEY`,
+`FARNELL_API_KEY`, `LCSC_API_KEY` + `LCSC_API_SECRET`,
+`TRUSTEDPARTS_API_KEY`), then **Manual Deploy**.
+
+**Free-tier caveats**
+- The instance **sleeps after ~15 min idle** — the first request after a nap
+  takes ~1 minute (cold start).
+- Storage is **ephemeral**: the SQLite database and cached reports live on the
+  instance's disk and reset on restart/redeploy. Source keys set as env vars
+  survive; long-term data persistence would use a managed Postgres/volume.
+
+---
+
 ## 🛠️ Development
 
 ```powershell
