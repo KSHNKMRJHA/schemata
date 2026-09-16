@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import secrets
 from contextlib import asynccontextmanager
 
@@ -56,6 +57,7 @@ app.mount("/bom-iq", StaticFiles(directory=str(UI_DIR / "bom-iq"), html=True),
 
 _ACCESS_TOKEN_ENV = "SCHEMATA_ACCESS_TOKEN"
 _ACCESS_COOKIE = "schemata_access"
+_RAW_TOKEN_RE = re.compile(r"(?:^|&)token=([^&]*)")
 
 
 def _access_token_hash(token: str) -> str:
@@ -70,6 +72,10 @@ async def _require_access_token(request, call_next):
     token via ``Authorization: Bearer <token>`` or ``?token=<token>``; a short
     httponly cookie then authenticates the rest of the session so the single
     page app and its relative API calls work naturally.
+
+    Tokens often contain ``+`` / ``=`` (e.g. base64). Because query parsing
+    decodes ``+`` as a space, both the decoded value and the raw URL segment
+    are accepted, so a token can be pasted verbatim.
     """
     token = os.environ.get(_ACCESS_TOKEN_ENV, "").strip()
     if not token:
@@ -78,13 +84,20 @@ async def _require_access_token(request, call_next):
         return await call_next(request)
 
     digest = _access_token_hash(token)
-    supplied = request.headers.get("authorization", "")
-    if supplied[:7].lower() == "bearer ":
-        supplied = supplied[7:].strip()
-    else:
-        supplied = request.query_params.get("token", "").strip()
-    if supplied:
-        if secrets.compare_digest(supplied, token):
+    candidates: list[str] = []
+    auth = request.headers.get("authorization", "")
+    if auth[:7].lower() == "bearer ":
+        candidates.append(auth[7:].strip())
+    decoded = request.query_params.get("token", "").strip()
+    if decoded:
+        candidates.append(decoded)
+    match = _RAW_TOKEN_RE.search(request.url.query or "")
+    if match:
+        raw = match.group(1)
+        if raw and raw != decoded:
+            candidates.append(raw)
+    for candidate in candidates:
+        if secrets.compare_digest(candidate, token):
             response = await call_next(request)
             response.set_cookie(
                 _ACCESS_COOKIE, digest,
@@ -92,6 +105,7 @@ async def _require_access_token(request, call_next):
                 secure=request.url.scheme == "https",
             )
             return response
+    if candidates:
         response = JSONResponse(status_code=401, content={"detail": "unauthorized"})
         response.delete_cookie(_ACCESS_COOKIE)
         return response

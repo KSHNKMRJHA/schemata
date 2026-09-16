@@ -184,6 +184,8 @@ https://<your-app>.onrender.com/?token=<SCHEMATA_ACCESS_TOKEN>
 
 The token briefly authenticates you and sets a session cookie; every later
 page/API call works normally. Without the token every route returns **401**.
+Tokens keep any special characters (`+`, `=`, …) — paste it verbatim, no URL
+encoding needed.
 
 **Add live data keys** — in the same Environment tab, add the source keys you
 want (e.g. `MOUSER_API_KEY`, `DIGIKEY_CLIENT_ID` + `DIGIKEY_CLIENT_SECRET`,

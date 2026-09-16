@@ -54,3 +54,11 @@ def test_bearer_token_grants_access(monkeypatch) -> None:
     with _client() as c:
         response = c.get("/parts", headers={"Authorization": f"Bearer {_TOKEN}"})
         assert response.status_code == 200
+
+
+def test_raw_token_with_plus_pasted_verbatim(monkeypatch) -> None:
+    token = "abc+def=ghi"
+    monkeypatch.setenv("SCHEMATA_ACCESS_TOKEN", token)
+    with _client() as c:
+        assert c.get("/parts?token=" + token).status_code == 200
+        assert c.get("/parts?token=wrong").status_code == 401
